@@ -1,0 +1,1 @@
+let vision_manager = null;

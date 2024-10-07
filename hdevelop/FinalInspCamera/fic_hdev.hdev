@@ -1,0 +1,301 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hdevelop file_version="1.2" halcon_version="22.11.3.0">
+<procedure name="main">
+<interface/>
+<body>
+<l>global tuple Models</l>
+<l>global tuple ModelsName</l>
+<l>global tuple ModelsWidth</l>
+<l>global tuple ModelsHeight</l>
+<c></c>
+<l>OpenCamera(AcqHandle)</l>
+<l>TriggerCamera(Image, AcqHandle)</l>
+<c></c>
+<l>Inspection(Image, 0, -0.01, 0.01, 0.5, Angle, Score, OK, NOK, X, Y, Ref, Width, Height)</l>
+<l>Display(Image, X, Y, Width, Height, OK, NOK, Ref, Score)</l>
+<c></c>
+<c></c>
+<c></c>
+</body>
+<docu id="main">
+<parameters/>
+</docu>
+</procedure>
+<procedure name="CreateModel">
+<interface>
+<io>
+<par name="Image" base_type="iconic" dimension="0"/>
+</io>
+<ic>
+<par name="RefName" base_type="ctrl" dimension="0"/>
+</ic>
+</interface>
+<body>
+<l>global tuple Models</l>
+<c></c>
+<l>get_image_size(Image, ImageWidth, ImageHeight)</l>
+<l>gen_rectangle1(Rectangle, 0, 0, ImageHeight-900, ImageWidth)  // Set coordinates for cropping</l>
+<l>reduce_domain(Image, Rectangle, Image)</l>
+<c></c>
+<l>threshold (Image, Regions, 105, 245)</l>
+<l>fill_up(Regions, Regions)</l>
+<c></c>
+<l>erosion_circle(Regions, RegionErosion, 47.5)</l>
+<c></c>
+<l>connection(RegionErosion, ConnectedRegions)</l>
+<l>select_shape (ConnectedRegions, SelectedRegions, 'row1', 'and', 575, 2000)</l>
+<l>select_shape_std(ConnectedRegions, LargestRegion, 'max_area', 70)</l>
+<c></c>
+<l>dilation_circle(LargestRegion, Pulley, 47.5)</l>
+<l>smallest_rectangle1(Pulley, PulleyY01, PulleyX01, PulleyY02, PulleyX02)</l>
+<l>gen_rectangle1(Rectangle, PulleyY01, PulleyX01, PulleyY02, PulleyX02)</l>
+<l>reduce_domain(Image, Rectangle, PulleyImage)</l>
+<l>create_shape_model (PulleyImage, 'auto', -0.01, 0.01, 'auto', 'auto', 'use_polarity', 'auto', 'auto', Model)</l>
+<l>Models := [Models, Model]</l>
+<c></c>
+<l>tuple_length(Models, ModelNumber)</l>
+<c></c>
+<l>ModelName := 'models/'+RefName</l>
+<l>ObjectName := 'regions/'+RefName</l>
+<c></c>
+<l>write_object(Pulley, ObjectName)</l>
+<l>write_image (PulleyImage, 'png', 0, ModelName)</l>
+<c></c>
+<l>return ()</l>
+</body>
+<docu id="CreateModel">
+<parameters>
+<parameter id="Image"/>
+<parameter id="RefName"/>
+</parameters>
+</docu>
+</procedure>
+<procedure name="GetAllModels">
+<interface>
+<ic>
+<par name="models_folder" base_type="ctrl" dimension="0"/>
+<par name="regions_folder" base_type="ctrl" dimension="0"/>
+</ic>
+</interface>
+<body>
+<l>global tuple Models</l>
+<l>global tuple ModelsName</l>
+<l>global tuple ModelsWidth</l>
+<l>global tuple ModelsHeight</l>
+<c></c>
+<l>list_files(models_folder, 'files', files)</l>
+<c></c>
+<l>tuple_length(files, number_models)</l>
+<c></c>
+<l>for i := 0 to (number_models) - 1 by 1</l>
+<l>    file := files[i]</l>
+<l>    tuple_split(file, '/', directory_parts)</l>
+<l>    tuple_length(directory_parts, number_directory)</l>
+<c>    </c>
+<l>    read_image(Image, file)</l>
+<l>    create_shape_model (Image, 'auto', -0.01, 0.01, 'auto', 'auto', 'use_polarity', 'auto', 'auto', Model)</l>
+<l>    Models := [Models, Model]</l>
+<c>    </c>
+<l>    file_name := directory_parts[number_directory-1] </l>
+<l>    tuple_split(file_name, '.', file_parts)</l>
+<c>    </c>
+<c>    </c>
+<l>    read_object(Object, regions_folder+'/'+file_parts[0]+'.hobj')</l>
+<l>    smallest_rectangle1(Object, ObjectY01, ObjectX01, ObjectY02, ObjectX02)</l>
+<c></c>
+<c>    </c>
+<l>    ModelsName := [ModelsName, file_parts[0]]</l>
+<l>    ModelsWidth := [ModelsWidth, ObjectX02 - ObjectX01]</l>
+<l>    ModelsHeight := [ModelsHeight, ObjectY02 - ObjectY01]</l>
+<c>    </c>
+<l>endfor</l>
+<c></c>
+<l>return ()</l>
+</body>
+<docu id="GetAllModels">
+<parameters>
+<parameter id="models_folder"/>
+<parameter id="regions_folder"/>
+</parameters>
+</docu>
+</procedure>
+<procedure name="OpenCamera">
+<interface>
+<oc>
+<par name="AcqHandle" base_type="ctrl" dimension="0"/>
+</oc>
+</interface>
+<body>
+<l>global tuple Models</l>
+<l>global tuple ModelsName</l>
+<l>global tuple ModelsWidth</l>
+<l>global tuple ModelsHeight</l>
+<c></c>
+<l>Models := []</l>
+<l>ModelsName := []</l>
+<l>ModelsWidth := []</l>
+<l>ModelsHeight := []</l>
+<c></c>
+<l>GetAllModels('/home/joao/Desktop/halcon_pulleys/hdevelop/FinalInspCamera/models', '/home/joao/Desktop/halcon_pulleys/hdevelop/FinalInspCamera/regions')</l>
+<c></c>
+<l>open_framegrabber ('File', 1, 1, 0, 0, 0, 0, 'default', -1, 'default', -1, 'false', '/home/joao/Desktop/halcon_pulleys/hdevelop/FinalInspCamera', 'default', 1, -1, AcqHandle)</l>
+<l>return ()</l>
+</body>
+<docu id="OpenCamera">
+<parameters>
+<parameter id="AcqHandle"/>
+</parameters>
+</docu>
+</procedure>
+<procedure name="TriggerCamera">
+<interface>
+<oo>
+<par name="Image" base_type="iconic" dimension="0"/>
+</oo>
+<ic>
+<par name="AcqHandle" base_type="ctrl" dimension="0"/>
+</ic>
+</interface>
+<body>
+<l>grab_image_start (AcqHandle, -1)</l>
+<l>grab_image_async (Image, AcqHandle, -1)</l>
+<l>return ()</l>
+<c></c>
+</body>
+<docu id="TriggerCamera">
+<parameters>
+<parameter id="AcqHandle"/>
+<parameter id="Image"/>
+</parameters>
+</docu>
+</procedure>
+<procedure name="Inspection">
+<interface>
+<io>
+<par name="Image" base_type="iconic" dimension="0"/>
+</io>
+<ic>
+<par name="ProgramNumber" base_type="ctrl" dimension="0"/>
+<par name="MinAngle" base_type="ctrl" dimension="0"/>
+<par name="MaxAngle" base_type="ctrl" dimension="0"/>
+<par name="MinScore" base_type="ctrl" dimension="0"/>
+</ic>
+<oc>
+<par name="Angle" base_type="ctrl" dimension="0"/>
+<par name="Score" base_type="ctrl" dimension="0"/>
+<par name="OK" base_type="ctrl" dimension="0"/>
+<par name="NOK" base_type="ctrl" dimension="0"/>
+<par name="X" base_type="ctrl" dimension="0"/>
+<par name="Y" base_type="ctrl" dimension="0"/>
+<par name="Ref" base_type="ctrl" dimension="0"/>
+<par name="Width" base_type="ctrl" dimension="0"/>
+<par name="Height" base_type="ctrl" dimension="0"/>
+</oc>
+</interface>
+<body>
+<l>global tuple Models</l>
+<l>global tuple ModelsName</l>
+<l>global tuple ModelsWidth</l>
+<l>global tuple ModelsHeight</l>
+<c></c>
+<l>find_shape_model (Image, Models[ProgramNumber], MinAngle, MaxAngle, MinScore, 1, 0.5, 'least_squares', 0, 0.9, Y, X, Angle, Score)</l>
+<c></c>
+<l>Ref := ModelsName[ProgramNumber]</l>
+<c></c>
+<l>if(Score &gt;= MinScore)</l>
+<l>    OK := 1</l>
+<l>    NOK := 0</l>
+<l>    Width := ModelsWidth[ProgramNumber]</l>
+<l>    Height := ModelsHeight[ProgramNumber]</l>
+<l>else</l>
+<l>    OK := 0</l>
+<l>    NOK := 1</l>
+<l>    Width := 0</l>
+<l>    Height := 0</l>
+<l>endif</l>
+<c></c>
+<l>return ()</l>
+</body>
+<docu id="Inspection">
+<parameters>
+<parameter id="Angle"/>
+<parameter id="Height"/>
+<parameter id="Image"/>
+<parameter id="MaxAngle"/>
+<parameter id="MinAngle"/>
+<parameter id="MinScore"/>
+<parameter id="NOK"/>
+<parameter id="OK"/>
+<parameter id="ProgramNumber"/>
+<parameter id="Ref"/>
+<parameter id="Score"/>
+<parameter id="Width"/>
+<parameter id="X"/>
+<parameter id="Y"/>
+</parameters>
+</docu>
+</procedure>
+<procedure name="Display">
+<interface>
+<io>
+<par name="Image" base_type="iconic" dimension="0"/>
+</io>
+<ic>
+<par name="X" base_type="ctrl" dimension="0"/>
+<par name="Y" base_type="ctrl" dimension="0"/>
+<par name="Width" base_type="ctrl" dimension="0"/>
+<par name="Height" base_type="ctrl" dimension="0"/>
+<par name="OK" base_type="ctrl" dimension="0"/>
+<par name="NOK" base_type="ctrl" dimension="0"/>
+<par name="Ref" base_type="ctrl" dimension="0"/>
+<par name="Score" base_type="ctrl" dimension="0"/>
+</ic>
+</interface>
+<body>
+<l>global tuple Models</l>
+<l>global tuple ModelsName</l>
+<l>global tuple ModelsWidth</l>
+<l>global tuple ModelsHeight</l>
+<c></c>
+<l>get_image_size(Image, ImageWidth, ImageHeight)</l>
+<c></c>
+<l>open_window(0,0,ImageWidth,ImageHeight,'root','invisible','',WindowHandle)</l>
+<l>set_part(WindowHandle, 0, 0, ImageHeight, ImageWidth)</l>
+<l>disp_image(Image, WindowHandle)</l>
+<c></c>
+<l>if (OK == 1)</l>
+<c>    </c>
+<l>    query_font (WindowHandle, Font)</l>
+<l>    FontStyle := Font[53]+'-Bold-'+48</l>
+<l>    set_font(WindowHandle, FontStyle)</l>
+<c>    </c>
+<l>    gen_rectangle1(RectangleInner, Y-(Height/2)-100, X-(Width/2)-100, Y+(Height/2)+100, X+(Width/2)+100)</l>
+<l>    gen_rectangle1(RectangleOutter, Y-(Height/2)-110, X-(Width/2)-110, Y+(Height/2)+110, X+(Width/2)+110)</l>
+<l>    difference(RectangleOutter, RectangleInner, Rectangle)</l>
+<l>    set_color(WindowHandle, 'green')</l>
+<l>    disp_text(WindowHandle, Ref, 'image', Y-(Height/2)-310, X-(Width/2)-110, 'black', [], [])    </l>
+<l>    disp_text(WindowHandle, Score, 'image', Y-(Height/2)-210, X-(Width/2)-110, 'green', [], [])</l>
+<l>    disp_region(Rectangle, WindowHandle)</l>
+<c></c>
+<l>endif</l>
+<c></c>
+<l>dump_window_image(OutputImage, WindowHandle)</l>
+<l>write_image(OutputImage, 'jpg', 0, '/home/joao/Desktop/halcon_pulleys/hdevelop/FinalInspCamera/output/output_image')</l>
+<c></c>
+<l>return ()</l>
+</body>
+<docu id="Display">
+<parameters>
+<parameter id="Height"/>
+<parameter id="Image"/>
+<parameter id="NOK"/>
+<parameter id="OK"/>
+<parameter id="Ref"/>
+<parameter id="Score"/>
+<parameter id="Width"/>
+<parameter id="X"/>
+<parameter id="Y"/>
+</parameters>
+</docu>
+</procedure>
+</hdevelop>

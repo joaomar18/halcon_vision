@@ -1,0 +1,584 @@
+
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type=number] {
+    appearance: textfield;
+}
+
+#side_bar{
+    position: absolute;
+    left:0;
+    top:0;
+    bottom:64px;
+    width:84px;
+    background-color: rgb(242,242,242);
+}
+
+#side_bar.amplify{
+    bottom:0px;
+}
+
+#side_bar_content{
+    position:relative;
+    width:100%;
+    height:100%;
+    padding:0;
+    margin:0;
+}
+
+#side_bar #buttons_div{
+    position: absolute;
+    width:100%;
+    top:0;
+    display: flex;
+    flex-direction: column;
+    justify-content: start;
+    align-items: center;
+}
+
+#side_bar .side_bar_button{
+    position:relative;
+    width:64px;
+    height:64px;
+    border-radius: 5px;
+    background-color: rgb(127,127,127);
+    margin-top:10px;
+    border:none;
+    background-repeat: no-repeat;
+    background-size:auto;
+    background-position: center;
+}
+
+#side_bar .side_bar_button button{
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+#side_bar .side_bar_button span{
+    position:absolute;
+    top:2px;
+    right:5px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size:14px;
+    font-weight: 500;
+    letter-spacing: 2px;
+}
+
+#side_bar .side_bar_button .state_div{
+    position:absolute;
+    top:5px;
+    right:5px;
+    width:12px;
+    height:12px;
+    border-radius: 50%;
+    background-color: white;
+}
+
+#side_bar .side_bar_button #inputs_outputs_state{
+    background-color: rgb(0,255,0);
+}
+#side_bar .side_bar_button #control_state{
+    background-color: rgb(0,255,0);
+}
+
+#side_bar .side_bar_button #connection_status{
+    background-color: rgb(255, 0, 0);
+}
+
+#side_bar #view_button{
+    background-image: url(../img/view.png);
+}
+
+#side_bar #inputs_outputs_button{
+    background-image: url(../img/inputs_outputs.png);
+}
+
+#side_bar #control_button{
+    background-image:  url(../img/touch.png);
+}
+
+#side_bar #history_button{
+    background-image:  url(../img/history.png);
+}
+
+#side_bar #connection_state{
+    background-image: url(../img/link.png);
+}
+
+#footer{
+    position: absolute;
+    left:0;
+    right:0;
+    bottom:0px;
+    height:64px;
+    background-color: rgb(242,242,242);
+}
+
+#footer.hidden{
+    display:none;
+}
+
+#footer_content{
+    position:relative;
+    width:100%;
+    height:100%;
+    padding:0;
+    margin:0;
+}
+
+#footer_content #halcon_logo{
+    position:absolute;
+    top:50%;
+    right:30px;
+    transform: translateY(-50%);
+    height:45px;
+    width:auto;
+}
+
+#footer_content #endovis_logo{
+    position:absolute;
+    top:50%;
+    left:10px;
+    transform: translateY(-50%);
+    height:45px;
+    width:auto;    
+}
+
+#footer_content #select_camera_div{
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform: translate(-50%,-50%);
+}
+
+#footer_content #select_camera_div span{
+    font-size: 18px;
+    font-weight: 500;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    padding-right:10px;
+}
+
+#footer_content #select_camera_div select{
+    font-size: 18px;
+    min-width:225px;
+    font-weight: 400;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    padding-left:10px;
+    padding-right:10px;
+    border:1px solid rgb(216,216,216);
+    background-color: white;
+}
+
+#footer_content #select_camera_div option{
+    border-radius: 0px;
+}
+
+
+#camera_div{
+    height:calc(90vh - 64px);
+    aspect-ratio: 1.33;
+    position:absolute;
+    left:50%;
+    top:50%;
+    transform: translate(-50%,-50%);
+}
+
+#camera_div.amplify{
+    height:calc(95vh);
+    transform: translate(-50%, -50%);
+}
+
+#camera_image{
+    background-color: rgb(58,58,58);
+    border:1px solid rgb(216,216,216);
+    background-size:contain;
+    background-position: center;
+    width:100%;
+    height:100%;
+    position:relative;
+}
+
+#camera_image #camera_image_header{
+    position:absolute;
+    top:0px;
+    width:100%;
+    height:64px;
+    left:0%;
+    transform: translateY(-100%);
+}
+
+#camera_image #camera_image_header.hidden{
+    display:none;
+}
+
+#camera_image #camera_image_right{
+    position:absolute;
+    top:0%;
+    width:64px;
+    height:100%;
+    right:0%;
+    transform: translateX(100%);
+}
+
+#camera_image #camera_image_right.hidden{
+    display:none;
+}
+
+#camera_image #camera_image_left{
+    position:absolute;
+    top:0%;
+    width:64px;
+    height:100%;
+    left:0%;
+    transform:translateX(-100%);
+}
+
+#camera_image #camera_image_left.hidden{
+    display:none;
+}
+
+#camera_image #camera_image_header #camera_image_header_content{
+    width:100%;
+    height:100%;
+    margin:0;
+    padding:0;
+    position: relative;
+}
+
+#camera_image #camera_image_right #camera_image_right_content{
+    width:100%;
+    height:100%;
+    margin:0;
+    padding:0;
+    position: relative;            
+}
+
+#camera_image #camera_image_left #camera_image_left_content{
+    width:100%;
+    height:100%;
+    margin:0;
+    padding:0;
+    position:relative;
+}
+
+#camera_image_header_content h3{
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-weight: 400;
+    font-size: 28px;
+    position: absolute;
+    left:50%;
+    transform: translateX(-50%);
+    bottom:10px;
+    margin:0;
+    padding:0;
+    text-align: center;
+}
+
+#camera_image_header_content #program_number_div{
+    margin:0;
+    padding:0;
+    position:absolute;
+    right:0%;
+    bottom:10px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-weight: 400;
+    font-size: 18px;
+}
+
+#program_number_div .value{
+    width:125px;
+    height:32px;
+    background-color: rgb(242,242,242);
+    border:1px solid rgb(216,216,216);
+    color: rgb(58,58,58);
+    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-weight: 500;
+    font-size: 24px;
+    padding:2px;
+    padding-right: 10px;
+    margin:0;
+    margin-left:10px;
+    text-align: right;
+    box-sizing: content-box;
+    appearance: textfield;
+    margin: 0;
+}
+
+#camera_image_header_content #buttons_div{
+    position: absolute;
+    height:100%;
+    left:0%;
+    bottom:10px;
+    display:flex;
+    justify-content: start;
+    align-items: end;
+}
+
+
+#camera_image_header_content #buttons_div .button{
+    width:45px;
+    height:45px;
+    margin:0;
+    margin-right:10px;
+    padding:0;
+    background-color: rgb(127,127,127);
+    cursor:pointer;
+    background-size: cover;
+    background-position: center;
+}
+
+#camera_image_header_content #buttons_div #trigger_button{
+    background-image: url(../img/t.png);
+
+}
+#camera_image_header_content #buttons_div #continuous_trigger_button{
+    background-image: url(../img/ct.png);
+
+}
+#camera_image_header_content #buttons_div #reset_button{
+    background-image: url(../img/r.png);
+
+}
+
+
+#camera_image_right_content #buttons_div{
+    position: absolute;
+    right:10px;
+    height:100%;
+    width:100%;
+    display:flex;
+    flex-direction: column;
+    justify-content: start;
+    align-items: end;
+}
+
+#camera_image_right_content #buttons_div .button{
+    width:45px;
+    height:45px;
+    margin:0;
+    margin-bottom:10px;
+    padding:0;
+    background-color: rgb(127,127,127);
+    cursor:pointer;
+    background-size: cover;
+    background-position: center;
+}
+
+#camera_image_right_content #buttons_div #inputs_button{
+    background-image: url(../img/i.png);
+}
+
+#camera_image_right_content #buttons_div #outputs_button{
+    background-image: url(../img/o.png);
+}
+
+#camera_image_right_content #buttons_div #historic_button{
+    background-image: url(../img/history_cam.png);
+}
+
+#camera_image_right_content #buttons_div #configuration_button{
+    background-image: url(../img/settings.png);
+}
+
+#camera_image_right_content #status_div{
+    position: absolute;
+    left:10px;
+    bottom:210px;
+    width:200px;
+    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: rgb(242,242,242);
+    border:1px solid rgb(216,216,216);
+    padding:10px;
+}
+
+#camera_image_right_content #status_div h5{
+    font-size: 18px;
+    font-weight: 400;
+    margin:0;
+    padding:0;
+    padding-bottom:30px;
+}
+
+#camera_image_right_content #status_div > div{
+    margin-bottom:10px;
+    display: flex;
+    flex-direction: row;
+}
+
+#camera_image_right_content #status_div div span{
+    font-size:15px;
+    font-weight: 300;
+    width:calc(100% - 20px);
+}
+
+#camera_image_right_content #status_div div div{
+    width:20px;
+    height:20px;
+    border-radius: 50%;
+    border:1px solid rgb(216,216,216);
+    background-color: white;
+}
+
+#camera_image_right_content #statistics_div{
+    position: absolute;
+    left:10px;
+    bottom:0px;
+    width:200px;
+    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: rgb(242,242,242);
+    border:1px solid rgb(216,216,216);
+    padding:10px;
+}
+
+#camera_image_right_content #statistics_div h5{
+    font-size: 18px;
+    font-weight: 400;
+    margin:0;
+    padding:0;
+    padding-bottom:30px;
+}
+
+#camera_image_right_content #statistics_div > div{
+    margin-bottom:10px;
+    display:flex;
+    flex-direction: row;
+    width:100%;
+}
+
+#camera_image_right_content #statistics_div div span{
+    display: inline-block;
+    font-size: 15px;
+    font-weight: 300;
+    width:60%;
+}
+
+#camera_image_right_content #statistics_div div input{
+    padding:2px;
+    padding-right:10px;
+    text-align: right;
+    font-size: 15px;
+    font-weight: 400;
+    width:40%;
+    background-color: white;
+    border:1px solid rgb(216,216,216);
+}
+
+
+#camera_image_left_content #inputs_div{
+    position: absolute;
+    top:0;
+    right:10px;
+    width:200px;
+    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: rgb(242,242,242);
+    border:1px solid rgb(216,216,216);
+    padding:10px;
+    margin:0;
+    height:calc(50% - 40px)
+}
+
+#camera_image_left_content #inputs_div h5{
+    font-size: 18px;
+    font-weight: 400;
+    margin:0;
+    padding:0;
+    padding-bottom:30px;
+}
+
+#camera_image_left_content #inputs_div > div{
+    position:relative;
+    margin-bottom:10px;
+    display:flex;
+    flex-direction: column;
+    width:100%;
+}
+
+#camera_image_left_content #inputs_div div .variable{
+    display: inline-block;
+    font-size: 15px;
+    font-weight: 300;
+    width:100%;
+    padding-bottom:5px;
+}
+
+#camera_image_left_content #inputs_div div .type{
+    font-size: 14px;
+    font-weight: 300;
+    position:absolute;
+    right:10px;
+    color: rgb(127,127,127);
+}
+
+
+
+#camera_image_left_content #inputs_div div input{
+    font-size: 15px;
+    font-weight: 300;
+    height:23px;
+    border: 1px solid rgb(216,216,216);
+    background-color: white;
+}
+
+#camera_image_left_content #outputs_div{
+    position: absolute;
+    right:10px;
+    bottom:0px;
+    width:200px;
+    font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: rgb(242,242,242);
+    border:1px solid rgb(216,216,216);
+    padding:10px;
+    margin:0;
+    height:calc(50% - 40px);
+    overflow-y: auto;
+    
+}
+
+#camera_image_left_content #outputs_div h5{
+    font-size: 18px;
+    font-weight: 400;
+    margin:0;
+    padding:0;
+    padding-bottom:30px;
+}
+
+#camera_image_left_content #outputs_div > div{
+    margin-bottom:10px;
+    display:flex;
+    flex-direction: column;
+    position:relative;
+    width:100%;
+}
+
+#camera_image_left_content #outputs_div div .variable{
+    display: inline-block;
+    font-size: 15px;
+    font-weight: 300;
+    width:100%;
+    padding-bottom:5px;
+}
+
+#camera_image_left_content #outputs_div div .type{
+    font-size: 14px;
+    font-weight: 300;
+    position:absolute;
+    right:10px;
+    color: rgb(127,127,127);
+}
+
+#camera_image_left_content #outputs_div div input{
+    font-size: 15px;
+    font-weight: 300;
+    height:23px;
+    border: 1px solid rgb(216,216,216);
+    background-color: white;
+}

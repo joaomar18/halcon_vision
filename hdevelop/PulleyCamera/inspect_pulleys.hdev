@@ -1,0 +1,616 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hdevelop file_version="1.2" halcon_version="22.11.3.0">
+<procedure name="main">
+<interface/>
+<body>
+<c>*Inputs</c>
+<l>MinExtRadius := 94.5</l>
+<l>MaxExtRadius := 104.5</l>
+<l>MinIntRadius := 47.5</l>
+<l>MaxIntRadius := 52.5</l>
+<c></c>
+<c>*Outputs</c>
+<l>global tuple _CenterX</l>
+<l>global tuple _CenterY</l>
+<l>global tuple _HighestCircularity</l>
+<l>global tuple _IncorrectRefCount</l>
+<l>global tuple _CorrectRefCount</l>
+<l>global object _CorrectRefPulleys</l>
+<l>global object _IncorrectRefPulleys</l>
+<l>global object _BestPulley</l>
+<l>global tuple _MinIntRadiusResult</l>
+<l>global tuple _MaxIntRadiusResult</l>
+<l>global tuple _MinExtRadiusResult</l>
+<l>global tuple _MaxExtRadiusResult</l>
+<c></c>
+<l>_CenterX := []</l>
+<l>_CenterY := []</l>
+<l>_HighestCircularity := 0</l>
+<l>_IncorrectRefCount:=0</l>
+<l>_CorrectRefCount:=0</l>
+<l>gen_empty_obj(_CorrectRefPulleys)</l>
+<l>gen_empty_obj(_IncorrectRefPulleys)</l>
+<l>gen_empty_obj(_BestPulley)</l>
+<l>_MinIntRadiusResult := []</l>
+<l>_MaxIntRadiusResult := []</l>
+<l>_MinExtRadiusResult := []</l>
+<l>_MaxExtRadiusResult := []</l>
+<l>gen_empty_obj(InnerCircles)</l>
+<c></c>
+<c></c>
+<c></c>
+<c></c>
+<l>OpenCamera(AcqHandle)</l>
+<l>TriggerCamera (Image, AcqHandle)</l>
+<c></c>
+<c></c>
+<c>*Acquisiton and Image Processing</c>
+<l>scale_image_max(Image, ImageEnhanced)</l>
+<l>mean_image(ImageEnhanced, MeanImage, 5, 5)  // Adjust the filter size based on the image</l>
+<l>dyn_threshold(ImageEnhanced, MeanImage, RegionDynThresh, 5, 'light')  // Adjust the threshold value</l>
+<l>sobel_amp(ImageEnhanced, EdgeAmplitude, 'sum_abs', 5)</l>
+<l>threshold(EdgeAmplitude, RegionEdges, 30, 255)</l>
+<c></c>
+<c>*Pulleys Regions Extraction</c>
+<l>par_start&lt;Thread01&gt; : ProcessInnerRings(RegionEdges, PulleyInnerRings, 25, 75, 0.85)</l>
+<l>par_start&lt;Thread02&gt; : ProcessOuterRings(RegionEdges, PulleyOuterRings, 27.5, 75, 250, 0.85)</l>
+<l>par_join([Thread01, Thread02])</l>
+<c></c>
+<l>difference(PulleyOuterRings, PulleyInnerRings, Pulleys)</l>
+<l>count_obj(Pulleys, NumPulleys)</l>
+<c></c>
+<c></c>
+<l>for i := 1 to NumPulleys by 1</l>
+<l>    GetPulleyRegion(Pulleys, PulleyRegion, i)</l>
+<l>    GetInnerRingProperties(PulleyInnerRings, i, CurrentX, CurrentY, CurrentInnerRadius)</l>
+<l>    GetOuterRingProperties(PulleyOuterRings, i, _X, _Y, CurrentCircularity, CurrentOuterRadius)</l>
+<c>   </c>
+<l>    GetPulleysStatus(PulleyRegion, i, MinExtRadius, MaxExtRadius, MinIntRadius, MaxIntRadius, CurrentOuterRadius, CurrentInnerRadius, CurrentCircularity, CurrentX, CurrentY)</l>
+<l>    GetPulleysMeasures (i, CurrentInnerRadius, CurrentOuterRadius)</l>
+<l>endfor</l>
+<c></c>
+<c>*Display Results</c>
+<l>get_image_size(Image, ImageWidth, ImageHeight)</l>
+<l>open_window(0,0,ImageWidth,ImageHeight,'root','invisible','',WindowHandle)</l>
+<l>set_part(WindowHandle, 0, 0, ImageHeight, ImageWidth)</l>
+<l>disp_image(Image,WindowHandle)</l>
+<l>set_color(WindowHandle, 'green')</l>
+<l>disp_region(_CorrectRefPulleys, WindowHandle)</l>
+<l>set_color(WindowHandle, 'red')</l>
+<l>disp_region(_IncorrectRefPulleys, WindowHandle)</l>
+<l>set_color(WindowHandle, 'white')</l>
+<l>disp_region(_BestPulley, WindowHandle)</l>
+<c></c>
+<l>query_font (WindowHandle, Font)</l>
+<l>FontStyle := Font[53]+'-Bold-48'</l>
+<l>set_font(WindowHandle, FontStyle)</l>
+<l>for i := 1 to NumPulleys by 1</l>
+<l>    select_obj(Pulleys, PulleyRegion, i)</l>
+<l>    area_center(PulleyRegion, _, X, Y)</l>
+<l>    TuplePulleyNumber := i</l>
+<l>    set_tposition(WindowHandle, X, Y)</l>
+<l>    disp_text(WindowHandle, TuplePulleyNumber, 'image', X, Y, 'black', [], [])    </l>
+<l>endfor</l>
+<c></c>
+<l>dump_window_image(OutputImage, WindowHandle)</l>
+<l>write_image(OutputImage, 'png', 0, '/home/joao/Desktop/halcon_pulleys/hdevelop/PulleyCamera/output/output_image')</l>
+<c></c>
+<c></c>
+</body>
+<docu id="main">
+<parameters/>
+</docu>
+</procedure>
+<procedure name="ProcessInnerRings">
+<interface>
+<io>
+<par name="Region" base_type="iconic" dimension="0"/>
+</io>
+<oo>
+<par name="InnerRings" base_type="iconic" dimension="0"/>
+</oo>
+<ic>
+<par name="MinRadius" base_type="ctrl" dimension="0"/>
+<par name="MaxRadius" base_type="ctrl" dimension="0"/>
+<par name="MinCircularity" base_type="ctrl" dimension="0"/>
+</ic>
+</interface>
+<body>
+<c>*Process Inner Pulley Rings</c>
+<l>connection(Region, RegionExtracted)</l>
+<l>select_shape (RegionExtracted, RegionInnerRings, 'outer_radius', 'and', MinRadius, MaxRadius)</l>
+<l>fill_up(RegionInnerRings, InnerRingsFilled)</l>
+<l>select_shape (InnerRingsFilled, InnerRings, 'circularity', 'and', MinCircularity, 1)</l>
+<l>return ()</l>
+</body>
+<docu id="ProcessInnerRings">
+<parameters>
+<parameter id="InnerRings"/>
+<parameter id="MaxRadius"/>
+<parameter id="MinCircularity"/>
+<parameter id="MinRadius"/>
+<parameter id="Region"/>
+</parameters>
+</docu>
+</procedure>
+<procedure name="ProcessOuterRings">
+<interface>
+<io>
+<par name="Region" base_type="iconic" dimension="0"/>
+</io>
+<oo>
+<par name="OuterRings" base_type="iconic" dimension="0"/>
+</oo>
+<ic>
+<par name="ErosionRadius" base_type="ctrl" dimension="0"/>
+<par name="MinRadius" base_type="ctrl" dimension="0"/>
+<par name="MaxRadius" base_type="ctrl" dimension="0"/>
+<par name="MinCircularity" base_type="ctrl" dimension="0"/>
+</ic>
+</interface>
+<body>
+<l>fill_up(Region, FilledRegion)</l>
+<l>erosion_circle(FilledRegion, ErodedRegion, ErosionRadius)</l>
+<l>connection(ErodedRegion, RegionExtracted)</l>
+<l>dilation_circle(RegionExtracted, RegionOuterRings, ErosionRadius)</l>
+<l>select_shape (RegionOuterRings, OuterRings, 'outer_radius', 'and', MinRadius, MaxRadius)</l>
+<l>select_shape (OuterRings, OuterRings, 'circularity', 'and', MinCircularity, 1)</l>
+<l>return ()</l>
+</body>
+<docu id="ProcessOuterRings">
+<parameters>
+<parameter id="ErosionRadius"/>
+<parameter id="MaxRadius"/>
+<parameter id="MinCircularity"/>
+<parameter id="MinRadius"/>
+<parameter id="OuterRings"/>
+<parameter id="Region"/>
+</parameters>
+</docu>
+</procedure>
+<procedure name="GetInnerRingProperties">
+<interface>
+<io>
+<par name="InnerRings" base_type="iconic" dimension="0"/>
+</io>
+<ic>
+<par name="index" base_type="ctrl" dimension="0"/>
+</ic>
+<oc>
+<par name="X" base_type="ctrl" dimension="0"/>
+<par name="Y" base_type="ctrl" dimension="0"/>
+<par name="Radius" base_type="ctrl" dimension="0"/>
+</oc>
+</interface>
+<body>
+<l>select_obj(InnerRings, InnerRegion, index)</l>
+<l>smallest_circle(InnerRegion, X, Y, Radius)</l>
+<c></c>
+<l>return ()</l>
+</body>
+<docu id="GetInnerRingProperties">
+<parameters>
+<parameter id="InnerRings"/>
+<parameter id="Radius"/>
+<parameter id="X"/>
+<parameter id="Y"/>
+<parameter id="index"/>
+</parameters>
+</docu>
+</procedure>
+<procedure name="GetOuterRingProperties">
+<interface>
+<io>
+<par name="OuterRings" base_type="iconic" dimension="0"/>
+</io>
+<ic>
+<par name="index" base_type="ctrl" dimension="0"/>
+</ic>
+<oc>
+<par name="X" base_type="ctrl" dimension="0"/>
+<par name="Y" base_type="ctrl" dimension="0"/>
+<par name="Circularity" base_type="ctrl" dimension="0"/>
+<par name="Radius" base_type="ctrl" dimension="0"/>
+</oc>
+</interface>
+<body>
+<l>select_obj(OuterRings, OuterRegion, index)</l>
+<l>smallest_circle(OuterRegion, X, Y, Radius)</l>
+<l>circularity(OuterRegion, Circularity)</l>
+<l>return ()</l>
+</body>
+<docu id="GetOuterRingProperties">
+<parameters>
+<parameter id="Circularity"/>
+<parameter id="OuterRings"/>
+<parameter id="Radius"/>
+<parameter id="X"/>
+<parameter id="Y"/>
+<parameter id="index"/>
+</parameters>
+</docu>
+</procedure>
+<procedure name="GetPulleyRegion">
+<interface>
+<io>
+<par name="Pulleys" base_type="iconic" dimension="0"/>
+</io>
+<oo>
+<par name="Region" base_type="iconic" dimension="0"/>
+</oo>
+<ic>
+<par name="index" base_type="ctrl" dimension="0"/>
+</ic>
+</interface>
+<body>
+<l>select_obj(Pulleys, Region, index)</l>
+<l>return ()</l>
+</body>
+<docu id="GetPulleyRegion">
+<parameters>
+<parameter id="Pulleys"/>
+<parameter id="Region"/>
+<parameter id="index"/>
+</parameters>
+</docu>
+</procedure>
+<procedure name="GetPulleysStatus">
+<interface>
+<io>
+<par name="PulleyRegion" base_type="iconic" dimension="0"/>
+</io>
+<ic>
+<par name="index" base_type="ctrl" dimension="0"/>
+<par name="MinExtRadius" base_type="ctrl" dimension="0"/>
+<par name="MaxExtRadius" base_type="ctrl" dimension="0"/>
+<par name="MinIntRadius" base_type="ctrl" dimension="0"/>
+<par name="MaxIntRadius" base_type="ctrl" dimension="0"/>
+<par name="CurrentOuterRadius" base_type="ctrl" dimension="0"/>
+<par name="CurrentInnerRadius" base_type="ctrl" dimension="0"/>
+<par name="CurrentCircularity" base_type="ctrl" dimension="0"/>
+<par name="CurrentX" base_type="ctrl" dimension="0"/>
+<par name="CurrentY" base_type="ctrl" dimension="0"/>
+</ic>
+</interface>
+<body>
+<l>global tuple _CenterX</l>
+<l>global tuple _CenterY</l>
+<l>global tuple _HighestCircularity</l>
+<l>global tuple _IncorrectRefCount</l>
+<l>global tuple _CorrectRefCount</l>
+<l>global object _CorrectRefPulleys</l>
+<l>global object _IncorrectRefPulleys</l>
+<l>global object _BestPulley</l>
+<l>global tuple _MinIntRadiusResult</l>
+<l>global tuple _MaxIntRadiusResult</l>
+<l>global tuple _MinExtRadiusResult</l>
+<l>global tuple _MaxExtRadiusResult</l>
+<c></c>
+<c></c>
+<l>if (CurrentOuterRadius &gt;= MinExtRadius and CurrentOuterRadius &lt;= MaxExtRadius and CurrentInnerRadius &gt;= MinIntRadius and CurrentInnerRadius &lt;= MaxIntRadius)</l>
+<l>        _CorrectRefCount := _CorrectRefCount + 1</l>
+<l>        union2(_CorrectRefPulleys, PulleyRegion, _CorrectRefPulleys)</l>
+<l>            if (CurrentCircularity &gt; _HighestCircularity)</l>
+<l>                _CenterX := CurrentX</l>
+<l>                _CenterY := CurrentY</l>
+<l>                _HighestCircularity := CurrentCircularity</l>
+<l>                _BestPulley := PulleyRegion</l>
+<l>            endif</l>
+<l>    else</l>
+<l>        _IncorrectRefCount := _IncorrectRefCount + 1</l>
+<l>        union2(_IncorrectRefPulleys, PulleyRegion, _IncorrectRefPulleys)</l>
+<l>    endif</l>
+<c></c>
+<c></c>
+<c></c>
+<c></c>
+<l>return ()</l>
+</body>
+<docu id="GetPulleysStatus">
+<parameters>
+<parameter id="CurrentCircularity"/>
+<parameter id="CurrentInnerRadius"/>
+<parameter id="CurrentOuterRadius"/>
+<parameter id="CurrentX"/>
+<parameter id="CurrentY"/>
+<parameter id="MaxExtRadius"/>
+<parameter id="MaxIntRadius"/>
+<parameter id="MinExtRadius"/>
+<parameter id="MinIntRadius"/>
+<parameter id="PulleyRegion"/>
+<parameter id="index"/>
+</parameters>
+</docu>
+</procedure>
+<procedure name="GetPulleysMeasures">
+<interface>
+<ic>
+<par name="index" base_type="ctrl" dimension="0"/>
+<par name="CurrentInnerRadius" base_type="ctrl" dimension="0"/>
+<par name="CurrentOuterRadius" base_type="ctrl" dimension="0"/>
+</ic>
+</interface>
+<body>
+<l>global tuple _MinIntRadiusResult</l>
+<l>global tuple _MaxIntRadiusResult</l>
+<l>global tuple _MinExtRadiusResult</l>
+<l>global tuple _MaxExtRadiusResult</l>
+<c>    </c>
+<l>if (CurrentInnerRadius &lt; _MinIntRadiusResult or index == 1)</l>
+<l>        _MinIntRadiusResult := CurrentInnerRadius</l>
+<l>    endif</l>
+<l>if (CurrentInnerRadius &gt; _MaxIntRadiusResult or index == 1)</l>
+<l>        _MaxIntRadiusResult := CurrentInnerRadius</l>
+<l>    endif</l>
+<l>if (CurrentOuterRadius &lt; _MinExtRadiusResult or index == 1)</l>
+<l>        _MinExtRadiusResult := CurrentOuterRadius</l>
+<l>    endif</l>
+<l>if (CurrentOuterRadius &gt; _MaxExtRadiusResult or index == 1)</l>
+<l>        _MaxExtRadiusResult := CurrentOuterRadius</l>
+<l>    endif</l>
+<l>return ()</l>
+</body>
+<docu id="GetPulleysMeasures">
+<parameters>
+<parameter id="CurrentInnerRadius"/>
+<parameter id="CurrentOuterRadius"/>
+<parameter id="index"/>
+</parameters>
+</docu>
+</procedure>
+<procedure name="ExtractPulleys">
+<interface>
+<io>
+<par name="Image" base_type="iconic" dimension="0"/>
+</io>
+<oo>
+<par name="Pulleys" base_type="iconic" dimension="0"/>
+<par name="CorrectRefPulleys" base_type="iconic" dimension="0"/>
+<par name="IncorrectRefPulleys" base_type="iconic" dimension="0"/>
+<par name="BestPulley" base_type="iconic" dimension="0"/>
+</oo>
+<ic>
+<par name="MinIntRadius" base_type="ctrl" dimension="0"/>
+<par name="MaxIntRadius" base_type="ctrl" dimension="0"/>
+<par name="MinExtRadius" base_type="ctrl" dimension="0"/>
+<par name="MaxExtRadius" base_type="ctrl" dimension="0"/>
+</ic>
+<oc>
+<par name="X" base_type="ctrl" dimension="0"/>
+<par name="Y" base_type="ctrl" dimension="0"/>
+<par name="CorrectRefCount" base_type="ctrl" dimension="0"/>
+<par name="IncorrectRefCount" base_type="ctrl" dimension="0"/>
+<par name="MinIntRadiusResult" base_type="ctrl" dimension="0"/>
+<par name="MaxIntRadiusResult" base_type="ctrl" dimension="0"/>
+<par name="MinExtRadiusResult" base_type="ctrl" dimension="0"/>
+<par name="MaxExtRadiusResult" base_type="ctrl" dimension="0"/>
+</oc>
+</interface>
+<body>
+<c>*Outputs</c>
+<l>global tuple _CenterX</l>
+<l>global tuple _CenterY</l>
+<l>global tuple _HighestCircularity</l>
+<l>global tuple _IncorrectRefCount</l>
+<l>global tuple _CorrectRefCount</l>
+<l>global object _CorrectRefPulleys</l>
+<l>global object _IncorrectRefPulleys</l>
+<l>global object _BestPulley</l>
+<l>global tuple _MinIntRadiusResult</l>
+<l>global tuple _MaxIntRadiusResult</l>
+<l>global tuple _MinExtRadiusResult</l>
+<l>global tuple _MaxExtRadiusResult</l>
+<c></c>
+<l>_CenterX := []</l>
+<l>_CenterY := []</l>
+<l>_HighestCircularity := 0</l>
+<l>_IncorrectRefCount:=0</l>
+<l>_CorrectRefCount:=0</l>
+<l>gen_empty_obj(_CorrectRefPulleys)</l>
+<l>gen_empty_obj(_IncorrectRefPulleys)</l>
+<l>gen_empty_obj(_BestPulley)</l>
+<l>_MinIntRadiusResult := []</l>
+<l>_MaxIntRadiusResult := []</l>
+<l>_MinExtRadiusResult := []</l>
+<l>_MaxExtRadiusResult := []</l>
+<l>gen_empty_obj(InnerCircles)</l>
+<c></c>
+<l>scale_image_max(Image, ImageEnhanced)</l>
+<l>mean_image(ImageEnhanced, MeanImage, 5, 5)  // Adjust the filter size based on the image</l>
+<l>dyn_threshold(ImageEnhanced, MeanImage, RegionDynThresh, 5, 'light')  // Adjust the threshold value</l>
+<l>sobel_amp(ImageEnhanced, EdgeAmplitude, 'sum_abs', 5)</l>
+<l>threshold(EdgeAmplitude, RegionEdges, 30, 255)</l>
+<c></c>
+<c>*Pulleys Regions Extraction</c>
+<l>par_start&lt;Thread01&gt; : ProcessInnerRings(RegionEdges, PulleyInnerRings, 25, 75, 0.85)</l>
+<l>par_start&lt;Thread02&gt; : ProcessOuterRings(RegionEdges, PulleyOuterRings, 17.5, 75, 250, 0.85)</l>
+<l>par_join([Thread01, Thread02])</l>
+<c></c>
+<l>difference(PulleyOuterRings, PulleyInnerRings, Pulleys)</l>
+<l>count_obj(Pulleys, NumPulleys)</l>
+<c></c>
+<c></c>
+<l>for i := 1 to NumPulleys by 1</l>
+<l>    GetPulleyRegion(Pulleys, PulleyRegion, i)</l>
+<l>    GetInnerRingProperties(PulleyInnerRings, i, CurrentX, CurrentY, CurrentInnerRadius)</l>
+<l>    GetOuterRingProperties(PulleyOuterRings, i, _X, _Y, CurrentCircularity, CurrentOuterRadius)</l>
+<c>   </c>
+<l>    GetPulleysStatus(PulleyRegion, i, MinExtRadius, MaxExtRadius, MinIntRadius, MaxIntRadius, CurrentOuterRadius, CurrentInnerRadius, CurrentCircularity, CurrentX, CurrentY)</l>
+<l>    GetPulleysMeasures (i, CurrentInnerRadius, CurrentOuterRadius)</l>
+<l>endfor</l>
+<l>    CorrectRefPulleys := _CorrectRefPulleys</l>
+<l>    IncorrectRefPulleys := _IncorrectRefPulleys</l>
+<l>    BestPulley := _BestPulley</l>
+<l>    X := _CenterX</l>
+<l>    Y := _CenterY</l>
+<l>    CorrectRefCount := _CorrectRefCount</l>
+<l>    IncorrectRefCount := _IncorrectRefCount</l>
+<l>    MinIntRadiusResult := _MinIntRadiusResult</l>
+<l>    MaxIntRadiusResult := _MaxIntRadiusResult</l>
+<l>    MinExtRadiusResult := _MinExtRadiusResult</l>
+<l>    MaxExtRadiusResult := _MaxExtRadiusResult</l>
+<l>return ()</l>
+</body>
+<docu id="ExtractPulleys">
+<parameters>
+<parameter id="BestPulley"/>
+<parameter id="CorrectRefCount"/>
+<parameter id="CorrectRefPulleys"/>
+<parameter id="Image"/>
+<parameter id="IncorrectRefCount"/>
+<parameter id="IncorrectRefPulleys"/>
+<parameter id="MaxExtRadius"/>
+<parameter id="MaxExtRadiusResult"/>
+<parameter id="MaxIntRadius"/>
+<parameter id="MaxIntRadiusResult"/>
+<parameter id="MinExtRadius"/>
+<parameter id="MinExtRadiusResult"/>
+<parameter id="MinIntRadius"/>
+<parameter id="MinIntRadiusResult"/>
+<parameter id="Pulleys"/>
+<parameter id="X"/>
+<parameter id="Y"/>
+</parameters>
+</docu>
+</procedure>
+<procedure name="GetPulleysImage">
+<interface>
+<io>
+<par name="Image" base_type="iconic" dimension="0"/>
+<par name="Pulleys" base_type="iconic" dimension="0"/>
+<par name="CorrectRefPulleys" base_type="iconic" dimension="0"/>
+<par name="IncorrectRefPulleys" base_type="iconic" dimension="0"/>
+<par name="BestPulley" base_type="iconic" dimension="0"/>
+</io>
+</interface>
+<body>
+<l>get_image_size(Image, ImageWidth, ImageHeight)</l>
+<l>open_window(0,0,ImageWidth,ImageHeight,'root','invisible','',WindowHandle)</l>
+<l>set_part(WindowHandle, 0, 0, ImageHeight, ImageWidth)</l>
+<c></c>
+<c></c>
+<l>par_start&lt;Thread01&gt; : disp_image(Image,WindowHandle)</l>
+<l>par_start&lt;Thread02&gt; : PrepareDisplayText (Pulleys, WindowHandle, 53, 48, NumPulleys)</l>
+<l>DisplayPulleys(CorrectRefPulleys, 'green', WindowHandle)</l>
+<l>DisplayPulleys(IncorrectRefPulleys, 'red', WindowHandle)</l>
+<l>DisplayPulleys(BestPulley, 'white', WindowHandle)</l>
+<c></c>
+<l>par_join([Thread01, Thread02])</l>
+<c></c>
+<l>for i := 1 to NumPulleys by 1</l>
+<l>    select_obj(Pulleys, PulleyRegion, i)</l>
+<l>    area_center(PulleyRegion, _, X, Y)</l>
+<l>    TuplePulleyNumber := i</l>
+<l>    set_tposition(WindowHandle, X, Y)</l>
+<l>    disp_text(WindowHandle, TuplePulleyNumber, 'image', X, Y, 'black', [], [])    </l>
+<l>endfor</l>
+<c></c>
+<l>dump_window_image(OutputImage, WindowHandle)</l>
+<l>write_image(OutputImage, 'jpg', 0, '/home/joao/Desktop/halcon_pulleys/hdevelop/PulleyCamera/output/output_image')</l>
+<l>return ()</l>
+</body>
+<docu id="GetPulleysImage">
+<parameters>
+<parameter id="BestPulley"/>
+<parameter id="CorrectRefPulleys"/>
+<parameter id="Image"/>
+<parameter id="IncorrectRefPulleys"/>
+<parameter id="Pulleys"/>
+</parameters>
+</docu>
+</procedure>
+<procedure name="DisplayPulleys">
+<interface>
+<io>
+<par name="Pulleys" base_type="iconic" dimension="0"/>
+</io>
+<ic>
+<par name="Color" base_type="ctrl" dimension="0"/>
+<par name="WindowHandle" base_type="ctrl" dimension="0"/>
+</ic>
+</interface>
+<body>
+<l>set_color(WindowHandle, Color)</l>
+<l>disp_region(Pulleys, WindowHandle)</l>
+<l>return ()</l>
+</body>
+<docu id="DisplayPulleys">
+<parameters>
+<parameter id="Color"/>
+<parameter id="Pulleys"/>
+<parameter id="WindowHandle"/>
+</parameters>
+</docu>
+</procedure>
+<procedure name="PrepareDisplayText">
+<interface>
+<io>
+<par name="Pulleys" base_type="iconic" dimension="0"/>
+</io>
+<ic>
+<par name="WindowHandle" base_type="ctrl" dimension="0"/>
+<par name="FontID" base_type="ctrl" dimension="0"/>
+<par name="FontSize" base_type="ctrl" dimension="0"/>
+</ic>
+<oc>
+<par name="NumPulleys" base_type="ctrl" dimension="0"/>
+</oc>
+</interface>
+<body>
+<l>count_obj(Pulleys, NumPulleys)</l>
+<c></c>
+<l>query_font (WindowHandle, Font)</l>
+<l>FontStyle := Font[FontID]+'-Bold-'+FontSize</l>
+<l>set_font(WindowHandle, FontStyle)</l>
+<c></c>
+<c></c>
+<l>return ()</l>
+</body>
+<docu id="PrepareDisplayText">
+<parameters>
+<parameter id="FontID"/>
+<parameter id="FontSize"/>
+<parameter id="NumPulleys"/>
+<parameter id="Pulleys"/>
+<parameter id="WindowHandle"/>
+</parameters>
+</docu>
+</procedure>
+<procedure name="OpenCamera">
+<interface>
+<oc>
+<par name="AcqHandle" base_type="ctrl" dimension="0"/>
+</oc>
+</interface>
+<body>
+<l as_id="image_acquisition" as_name="Image Acquisition 01" as_grp="[1,1]" as_ord="2">open_framegrabber ('File', 1, 1, 0, 0, 0, 0, 'default', -1, 'default', -1, 'false', '/home/joao/Desktop/halcon_pulleys/hdevelop/PulleyCamera', 'default', 1, -1, AcqHandle)</l>
+<l>return ()</l>
+</body>
+<docu id="OpenCamera">
+<parameters>
+<parameter id="AcqHandle"/>
+</parameters>
+</docu>
+</procedure>
+<procedure name="TriggerCamera">
+<interface>
+<oo>
+<par name="Image" base_type="iconic" dimension="0"/>
+</oo>
+<ic>
+<par name="AcqHandle" base_type="ctrl" dimension="0"/>
+</ic>
+</interface>
+<body>
+<l>grab_image_start (AcqHandle, -1)</l>
+<l>grab_image_async (Image, AcqHandle, -1)</l>
+<l>return ()</l>
+</body>
+<docu id="TriggerCamera">
+<parameters>
+<parameter id="AcqHandle"/>
+<parameter id="Image"/>
+</parameters>
+</docu>
+</procedure>
+</hdevelop>
