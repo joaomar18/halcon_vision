@@ -1,4 +1,5 @@
 import asyncio
+from vision.data.variables import HalconVariable
 
 class VisionInputs:
 
@@ -15,8 +16,8 @@ class VisionInputs:
         }
         
         self.program_number = init_program
-        self.inputs_variables = list([None] * register_size)
-        self.inputs_register = list([0] * register_size)
+        self.inputs_variables: list[list[str]] = list([None] * register_size)
+        self.inputs_register: list[HalconVariable] = list(HalconVariable() for _ in range(register_size))
 
     ###########################     P R I V A T E     A T T R I B U T E S     ###########################
 
@@ -50,7 +51,7 @@ class VisionInputs:
 
         await self._send_message(type='status', 
                                  section='inputs_register', 
-                                 value=self.inputs_register)
+                                 value=HalconVariable.serialize_list(self.inputs_register))
         
     async def send_all(self):
 

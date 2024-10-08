@@ -81,7 +81,7 @@ class VisionSystem():
             elif type == 'string':
                 value = str(value)
 
-            self._communication.inputs.inputs_register[index] = value
+            self._communication.inputs.inputs_register[index].set_value(value)
             self._controller.set_camera_input(index, value)
  
 

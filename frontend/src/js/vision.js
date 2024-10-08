@@ -205,7 +205,15 @@ class VisionDevice{
             if(i >= this.inputs_elements.length){
                 break;
             }
-            this.inputs_elements[i].value = value;
+            if(this.inputs_types[i] == 'float'){
+                this.inputs_elements[i].value = Number(value).toFixed(2);
+            }
+            else if(this.inputs_types[i] == 'string'){
+                this.inputs_elements[i].value = value;
+            }
+            else if(this.inputs_types[i] == 'int'){
+                this.inputs_elements[i].value = parseInt(value);
+            }
             i++;
         }
     }
@@ -217,14 +225,17 @@ class VisionDevice{
             if(i >= this.outputs_elements.length){
                 break;
             }
-            if(this.outputs_types[i] == 'float'){
+            if(value == 'None'){
+                this.outputs_elements[i].value = '';
+            }
+            else if(this.outputs_types[i] == 'float'){
                 this.outputs_elements[i].value = Number(value).toFixed(2);
             }
             else if(this.outputs_types[i] == 'string'){
-                this.outputs_elements[i].value = String(value);
-            }
-            else{
                 this.outputs_elements[i].value = value;
+            }
+            else if(this.outputs_types[i] == 'int'){
+                this.outputs_elements[i].value = parseInt(value);
             }
             i++;
         }
@@ -409,6 +420,7 @@ class VisionDevice{
 
         if (JSON.stringify(this.outputs.outputs_register) !== JSON.stringify(this.outputs.old_outputs_register)) {
             this.outputs.old_outputs_register = [...this.outputs.outputs_register];
+            console.log(this.outputs.old_outputs_register);
             if(this.active){
                 this.update_outputs();
             }
