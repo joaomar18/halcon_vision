@@ -68,7 +68,11 @@ class VisionController():
 
             program_output = self._camera.get_program_output()
             for i, output in enumerate(program_output):
-                self._outputs.outputs_register[i] = output
+                if len(output) == 1:
+                    output = output[0]
+                elif len(output) == 0:
+                    output = None                    
+                self._outputs.outputs_register[i].set_value(output)
             self._outputs.status['run'] = False
             self._outputs.status['trigger_acknowledge'] = True
             await self._outputs.send_status()
@@ -108,13 +112,13 @@ class VisionController():
             self._inputs.inputs_variables[index] = None
 
         for i, input in enumerate(list(self._inputs.inputs_register).copy()):
-            self._inputs.inputs_register[i] = 0
+            self._inputs.inputs_register[i].set_value(0)
         
         for index, variable in enumerate(list(self._outputs.outputs_variables)):
             self._outputs.outputs_variables[index] = None
             
         for i, output in enumerate(list(self._outputs.outputs_register).copy()):
-            self._outputs.outputs_register[i] = 0
+            self._outputs.outputs_register[i].set_value(0)
     
     async def _change_camera_program(self, program_number: int):
             
@@ -132,7 +136,7 @@ class VisionController():
             self._outputs.outputs_variables[index] = variable
 
         for i, input_variable in enumerate(program_input_variables):
-            self._camera.set_program_input(i, self._inputs.inputs_register[i])
+            self._camera.set_program_input(i, self._inputs.inputs_register[i].value)
 
         await self._outputs.send_program_number_acknowledge()
         await self._inputs.send_inputs_variables()
