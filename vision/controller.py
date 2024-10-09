@@ -2,7 +2,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from vision.camera import VisionCamera
 from vision.data.comm import VisionCommunication
-
+from vision.data.variables import HalconVariable
 
 class VisionController():
 
@@ -102,23 +102,26 @@ class VisionController():
 
     ##############################     P R I V A T E     M E T H O D S     ##############################
 
+    def _clean_variables_names(self, list:list[list[str]]):
+        
+        for index in range(len(list)):
+            list[index] = None
+
+    def _clean_register_values(self, list:list[HalconVariable]):
+
+        for value in list.copy():
+            value.set_value(0)
+
     def _clean_camera_variables(self):
 
         self._outputs.statistics['min_run_time'] = 0
         self._outputs.statistics['run_time'] = 0
         self._outputs.statistics['max_run_time'] = 0
 
-        for index, variable in enumerate(list(self._inputs.inputs_variables)):
-            self._inputs.inputs_variables[index] = None
-
-        for i, input in enumerate(list(self._inputs.inputs_register).copy()):
-            self._inputs.inputs_register[i].set_value(0)
-        
-        for index, variable in enumerate(list(self._outputs.outputs_variables)):
-            self._outputs.outputs_variables[index] = None
-            
-        for i, output in enumerate(list(self._outputs.outputs_register).copy()):
-            self._outputs.outputs_register[i].set_value(0)
+        self._clean_variables_names(self._inputs.inputs_variables)
+        self._clean_register_values(self._inputs.inputs_register)
+        self._clean_variables_names(self._outputs.outputs_variables)
+        self._clean_register_values(self._outputs.outputs_register)            
     
     async def _change_camera_program(self, program_number: int):
             
@@ -144,6 +147,3 @@ class VisionController():
         await self._outputs.send_outputs_variables()
         await self._outputs.send_outputs()
         await self._outputs.send_statistics()
-
-
-        
