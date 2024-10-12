@@ -1,6 +1,15 @@
 from vision.procedure import create_vision_procedure
 
-def create_pulley_camera(program_path:str):
+def create_pulley_camera(program_path:str) -> tuple:
+    """
+    Creates the procedures for the pulley camera, including image processing and display procedures.
+    
+    Args:
+        program_path (str): The directory path for the camera's procedures.
+    
+    Returns:
+        tuple: Contains the open, trigger, programs, and displays for the pulley camera.
+    """
 
     open = create_vision_procedure(program_directory=program_path,
                                                        name='OpenCamera',
@@ -39,7 +48,16 @@ def create_pulley_camera(program_path:str):
     
     return open, trigger, programs, displays
 
-def create_final_inspection_camera(program_path:str):
+def create_final_inspection_camera(program_path:str) -> tuple:
+    """
+    Creates the procedures for the final inspection camera, including image processing and display procedures.
+    
+    Args:
+        program_path (str): The directory path for the camera's procedures.
+    
+    Returns:
+        tuple: Contains the open, trigger, programs, and displays for the final inspection camera.
+    """
 
     open = create_vision_procedure(program_directory=program_path,
                                                        name='OpenCamera',
