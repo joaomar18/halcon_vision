@@ -29,7 +29,11 @@ async def async_main():
                                       db_client=db_client,
                                       logger=logger)
     
-    vision_manager = VisionManager(queues.frontend_receive_queue, queues.frontend_send_queue)
+    vision_manager = VisionManager(receiver_queue=queues.frontend_receive_queue, 
+                                   send_queue=queues.frontend_send_queue,
+                                   db_client=db_client,
+                                   logger=logger)
+
     await vision_manager.add_vision_system(VisionSystem('PulleyCamera', 'Pulley Picking Camera', PULLEY_CAMERA_PROGRAM_PATH, PULLEY_CAMERA_OUTPUT_PATH, 
                                                         vision.construct.create_pulley_camera, 32, 1))
     await vision_manager.add_vision_system(VisionSystem('FinalInspCamera', 'Final Inspection Camera', FINAL_INSPECTION_CAMERA_PROGRAM_PATH, 

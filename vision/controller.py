@@ -59,7 +59,7 @@ class VisionController():
 
     ###############################     P U B L I C     M E T H O D S     ###############################
 
-    def init(self):
+    async def init(self):
         """
         Initialize the camera and start the necessary async tasks.
         """
