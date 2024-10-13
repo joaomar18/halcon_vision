@@ -44,7 +44,7 @@ class WebSocketServer:
                 'message TEXT',
                 'date TEXT'
             ])
-            self._running = True
+            self._running = False
             asyncio.create_task(self.process_send_messages())
         except Exception as e:
             self._log_and_store_error(f"Error initializing WebSocket server: {e}")
@@ -124,6 +124,7 @@ class WebSocketServer:
         try:
             self._logger.info(f"WebSocket Server - Starting on {self._host}:{self._port}")
             async with websockets.serve(self.handle_client, self._host, self._port):
+                self._running = True
                 await asyncio.Future()
         except Exception as e:
             self._log_and_store_error(f"WebSocket Server - Failed to start: {e}")
