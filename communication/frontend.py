@@ -45,9 +45,8 @@ class WebSocketServer:
                 'date TEXT'
             ])
             self._running = False
-            asyncio.create_task(self.process_send_messages())
         except Exception as e:
-            self._log_and_store_error(f"Error initializing WebSocket server: {e}")
+            self._log_and_store_error(f"WebSocket Server - Error initializing", e)
 
     async def handle_client(self, websocket: websockets.WebSocketServerProtocol, path: str):
         """
@@ -73,11 +72,11 @@ class WebSocketServer:
                     message = json.loads(message)
                     await self._receive_queue.put(message)
                 except json.JSONDecodeError as e:
-                    self._log_and_store_error(f"WebSocket Server - Error decoding message: {e}")
+                    self._log_and_store_error(f"WebSocket Server - Error decoding message", e)
         except ConnectionClosed:
             self._logger.warning(f"WebSocket Server - Connection closed by client: {client_address}")
         except Exception as e:
-            self._log_and_store_error(f"WebSocket Server - Error occurred: {e}")
+            self._log_and_store_error(f"WebSocket Server - Error occurred", e)
         finally:
             self._logger.info(f"WebSocket Server - Closing connection from {client_address}")
             async with self._lock:
@@ -94,7 +93,7 @@ class WebSocketServer:
                     message = await self._send_queue.get()
                     await self._send_message(message)
                 except Exception as e:
-                    self._log_and_store_error(f"WebSocket Server - Error processing messages to send: {e}")
+                    self._log_and_store_error(f"WebSocket Server - Error processing messages to send", e)
             else:
                 await asyncio.sleep(0.5)
 
@@ -112,7 +111,7 @@ class WebSocketServer:
                     message = json.dumps(message)
                     await self._client.send(message)
                 except Exception as e:
-                    self._log_and_store_error(f"WebSocket Server - Failed to send message: {e}")
+                    self._log_and_store_error(f"WebSocket Server - Failed to send message", e)
             else:
                 self._logger.warning("WebSocket Server - No client is connected.")
 
@@ -125,9 +124,10 @@ class WebSocketServer:
             self._logger.info(f"WebSocket Server - Starting on {self._host}:{self._port}")
             async with websockets.serve(self.handle_client, self._host, self._port):
                 self._running = True
+                asyncio.create_task(self.process_send_messages())
                 await asyncio.Future()
         except Exception as e:
-            self._log_and_store_error(f"WebSocket Server - Failed to start: {e}")
+            self._log_and_store_error(f"WebSocket Server - Failed to start", e)
 
     async def stop_server(self):
         """
@@ -141,13 +141,19 @@ class WebSocketServer:
                 await self._client.close()
                 self._client = None
 
-    def _log_and_store_error(self, message: str):
+    def _log_and_store_error(self, message: str, exception: Exception = None):
         """
-        Helper method to log and store errors in the database.
+        Log and store error messages in the database.
 
         Args:
             message (str): The error message to log and store.
+            exception (Exception, optional): The exception that triggered the error, if any.
         """
 
-        self._logger.error(f"{message}")
-        self._db_client.insert_entry('frontend_error', ['message', 'date'], [message, str(datetime.datetime.now())])
+        if exception:
+            full_message = f"{message} | Exception: {repr(exception)}"
+        else:
+            full_message = message
+
+        self._logger.error(full_message)
+        self._db_client.insert_entry('frontend_error', ['message', 'date'], [full_message, str(datetime.datetime.now())])
