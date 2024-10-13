@@ -16,7 +16,6 @@ PULLEY_CAMERA_OUTPUT_PATH = '/home/joao/Desktop/halcon_pulleys/hdevelop/PulleyCa
 FINAL_INSPECTION_CAMERA_PROGRAM_PATH = '/home/joao/Desktop/halcon_pulleys/hdevelop/FinalInspCamera/fic_hdev.hdev'
 FINAL_INSPECTION_CAMERA_OUTPUT_PATH = '/home/joao/Desktop/halcon_pulleys/hdevelop/FinalInspCamera/output/output_image'
 
-
 async def async_main():
 
     db_client = DBClient(db_file='db/vision_app.db', 
@@ -34,10 +33,26 @@ async def async_main():
                                    db_client=db_client,
                                    logger=logger)
 
-    await vision_manager.add_vision_system(VisionSystem('PulleyCamera', 'Pulley Picking Camera', PULLEY_CAMERA_PROGRAM_PATH, PULLEY_CAMERA_OUTPUT_PATH, 
-                                                        vision.construct.create_pulley_camera, 32, 1))
-    await vision_manager.add_vision_system(VisionSystem('FinalInspCamera', 'Final Inspection Camera', FINAL_INSPECTION_CAMERA_PROGRAM_PATH, 
-                                                        FINAL_INSPECTION_CAMERA_OUTPUT_PATH, vision.construct.create_final_inspection_camera, 32, 1))
+    await vision_manager.add_vision_system(VisionSystem(name='PulleyCamera', 
+                                                        description='Pulley Picking Camera', 
+                                                        program_path=PULLEY_CAMERA_PROGRAM_PATH, 
+                                                        output_path=PULLEY_CAMERA_OUTPUT_PATH, 
+                                                        camera_construct_function=vision.construct.create_pulley_camera, 
+                                                        db_client=db_client, 
+                                                        logger=logger,
+                                                        register_size=32,
+                                                        init_program=1))
+    
+    await vision_manager.add_vision_system(VisionSystem('FinalInspCamera', 
+                                                        'Final Inspection Camera', 
+                                                        FINAL_INSPECTION_CAMERA_PROGRAM_PATH, 
+                                                        FINAL_INSPECTION_CAMERA_OUTPUT_PATH, 
+                                                        vision.construct.create_final_inspection_camera, 
+                                                        db_client=db_client, 
+                                                        logger=logger,
+                                                        register_size=32,
+                                                        init_program=1))
+    
     await asyncio.gather(
         frontend_server.start_server(),
     )
