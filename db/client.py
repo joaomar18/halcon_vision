@@ -8,12 +8,14 @@ class DBClient:
 
     Attributes:
     -----------
-    db_name : str
+    db_file : str
         The name of the SQLite database file.
     conn : sqlite3.Connection
         The connection object for the database.
     cursor : sqlite3.Cursor
         The cursor object used to execute SQL commands.
+    logger : logging.Logger
+        The logger object used to log errors and other messages.
     """
 
     def __init__(self, db_file: str, logger: logging.Logger):
@@ -22,13 +24,14 @@ class DBClient:
 
         Parameters:
         -----------
-        db_name : str
+        db_file : str
             The name of the SQLite database file to connect to. If the database 
             does not exist, it will be created.
-
+        logger : logging.Logger
+            The logger object used to log errors and other messages.
         Example:
         --------
-        db = DBClient('example.db')
+        db = DBClient('mydatabase.db', logger)
         """
         try:
             self._db_file = db_file
@@ -39,6 +42,56 @@ class DBClient:
 
         except Exception as e:
             self._logger.error(f"DB Client - Error initializing database client: {e}")
+    
+    def __enter__(self):
+        """
+        Enters the runtime context related to this object.
+
+        This method is called when the `with` statement is used with the DBClient instance.
+        It returns the instance itself, allowing for the execution of database operations
+        within the `with` block.
+
+        Returns:
+        --------
+        DBClient
+            The current DBClient instance, which can be used for further database operations.
+
+        Example:
+        --------
+        with DBClient('example.db', logger) as db:
+            db.create_table('users', ['id INTEGER PRIMARY KEY', 'name TEXT', 'age INTEGER'])
+        """
+        
+        return self
+    
+    def __exit__(self, exc_type, exc_value, traceback):
+        """
+        Exits the runtime context related to this object.
+
+        This method is called when the `with` block is exited, either through successful
+        execution or an exception. It ensures that the database connection is closed properly
+        to release resources.
+
+        Parameters:
+        -----------
+        exc_type : type
+            The exception type, if an exception was raised within the `with` block. If no
+            exception was raised, this will be None.
+        exc_value : Exception
+            The exception instance raised within the `with` block, if applicable. If no exception
+            was raised, this will be None.
+        traceback : traceback
+            A traceback object representing the call stack at the point where the exception
+            was raised. If no exception was raised, this will be None.
+
+        Example:
+        --------
+        with DBClient('example.db', logger) as db:
+            db.insert_entry('users', ('name', 'age'), ('John Doe', 30))
+        # At the end of the block, the connection will be automatically closed.
+        """
+
+        self.close()
 
     def create_table(self, table_name: str, columns:list[str]):
         """
