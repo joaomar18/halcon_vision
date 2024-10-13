@@ -53,7 +53,7 @@ class VisionSystem():
                                          'message TEXT',
                                          'date TEXT'])
 
-        except Exception as e:                
+        except Exception as e:           
 
             self._log_and_store_error(f"{self.name}- Error initializing", e)
     
@@ -328,11 +328,13 @@ class VisionSystem():
             message (str): The error message to log and store.
             exception (Exception, optional): The exception that triggered the error, if any.
         """
+        try:
+            if exception:
+                full_message = f"{message} | Exception: {repr(exception)}"
+            else:
+                full_message = message
+            self._logger.error(full_message)
+            self._db_client.insert_entry(f'{self.name}_error', ['message', 'date'], [full_message, str(datetime.datetime.now())])
 
-        if exception:
-            full_message = f"{message} | Exception: {repr(exception)}"
-        else:
-            full_message = message
-
-        self._logger.error(full_message)
-        self._db_client.insert_entry(f'{self.name}_error', ['message', 'date'], [full_message, str(datetime.datetime.now())])
+        except Exception as e:
+            self._logger.error(f"{self.name}- Error logging and storing error: {e}")
