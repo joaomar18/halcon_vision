@@ -1,5 +1,15 @@
+###########EXTERNAL IMPORTS############
+
 import sqlite3
-import logging
+
+#######################################
+
+#############LOCAL IMPORTS#############
+
+from util.debug import LoggerManager
+
+#######################################
+
 
 class DBClient:
     """
@@ -18,31 +28,18 @@ class DBClient:
         The logger object used to log errors and other messages.
     """
 
-    def __init__(self, db_file: str, logger: logging.Logger):
-        """
-        Initializes the DBClient with the specified database file.
+    def __init__(self, db_file: str):
 
-        Parameters:
-        -----------
-        db_file : str
-            The name of the SQLite database file to connect to. If the database 
-            does not exist, it will be created.
-        logger : logging.Logger
-            The logger object used to log errors and other messages.
-        Example:
-        --------
-        db = DBClient('mydatabase.db', logger)
-        """
+        logger = LoggerManager.get_logger(__name__)
+
         try:
-            self._db_file = db_file
-            self._conn = sqlite3.connect(db_file)
-            self._cursor = self._conn.cursor()
-
-            self._logger = logger
+            self.db_file = db_file
+            self.conn = sqlite3.connect(db_file)
+            self.cursor = self.conn.cursor()
 
         except Exception as e:
-            self._logger.error(f"DB Client - Error initializing database client: {e}")
-    
+            logger.error(f"DB Client - Error initializing database client: {e}")
+
     def __enter__(self):
         """
         Enters the runtime context related to this object.
@@ -61,9 +58,9 @@ class DBClient:
         with DBClient('example.db', logger) as db:
             db.create_table('users', ['id INTEGER PRIMARY KEY', 'name TEXT', 'age INTEGER'])
         """
-        
+
         return self
-    
+
     def __exit__(self, exc_type, exc_value, traceback):
         """
         Exits the runtime context related to this object.
@@ -93,7 +90,7 @@ class DBClient:
 
         self.close()
 
-    def create_table(self, table_name: str, columns:list[str]):
+    def create_table(self, table_name: str, columns: list[str]) -> None:
         """
         Creates a new table in the database with the specified name and columns.
 
@@ -113,14 +110,16 @@ class DBClient:
         The method will catch and print any exceptions that occur during the table creation process.
         """
 
+        logger = LoggerManager.get_logger(__name__)
+
         try:
-            columns = ', '.join(columns)
-            self._cursor.execute(f"CREATE TABLE IF NOT EXISTS {table_name} ({columns})")
-            self._conn.commit()
+            columns = ", ".join(columns)
+            self.cursor.execute(f"CREATE TABLE IF NOT EXISTS {table_name} ({columns})")
+            self.conn.commit()
         except Exception as e:
-            self._logger.error(f"DB Client - Error creating table: {e}")
-    
-    def insert_entry(self, table_name: str, parameters: tuple, values: tuple):
+            logger.error(f"DB Client - Error creating table: {e}")
+
+    def insert_entry(self, table_name: str, parameters: tuple, values: tuple) -> None:
         """
         Inserts a new entry into the specified table.
 
@@ -142,15 +141,21 @@ class DBClient:
         This method uses parameterized queries to avoid SQL injection.
         """
 
+        logger = LoggerManager.get_logger(__name__)
+
         try:
-            placeholders = ', '.join('?' * len(values))
-            columns = ', '.join(parameters)
-            self._cursor.execute(f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})", values)
-            self._conn.commit()
+            placeholders = ", ".join("?" * len(values))
+            columns = ", ".join(parameters)
+            self.cursor.execute(
+                f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})", values
+            )
+            self.conn.commit()
         except Exception as e:
-            self._logger.error(f"DB Client - Error inserting entry into {table_name}: {e}")
-    
-    def update_entry(self, table_name: str, set_clause: str, where_clause: str = None):
+            logger.error(f"DB Client - Error inserting entry into {table_name}: {e}")
+
+    def update_entry(
+        self, table_name: str, set_clause: str, where_clause: str = None
+    ) -> None:
         """
         Updates an existing entry in the specified table using a custom query.
 
@@ -172,16 +177,20 @@ class DBClient:
         This method uses parameterized queries to avoid SQL injection.
         """
 
+        logger = LoggerManager.get_logger(__name__)
+
         try:
             query = f"UPDATE {table_name} SET {set_clause}"
             if where_clause:
                 query += f" WHERE {where_clause}"
-            self._cursor.execute(query)
-            self._conn.commit()
+            self.cursor.execute(query)
+            self.conn.commit()
         except Exception as e:
-            self._logger.error(f"DB Client - Error updating entry in {table_name}: {e}")
-    
-    def delete_entries(self, table_name: str, where_clause: str, params: tuple = ()):
+            logger.error(f"DB Client - Error updating entry in {table_name}: {e}")
+
+    def delete_entries(
+        self, table_name: str, where_clause: str, params: tuple = ()
+    ) -> None:
         """
         Deletes entries from the specified table using a custom query.
 
@@ -203,14 +212,18 @@ class DBClient:
         This method uses parameterized queries to avoid SQL injection.
         """
 
+        logger = LoggerManager.get_logger(__name__)
+
         try:
             query = f"DELETE FROM {table_name} WHERE {where_clause}"
-            self._cursor.execute(query, params)
-            self._conn.commit()
+            self.cursor.execute(query, params)
+            self.conn.commit()
         except Exception as e:
-            self._logger.error(f"DB Client - Error deleting entries from {table_name}: {e}")
-        
-    def get_entries(self, table_name: str, where_clause: str = None, params: tuple = ()) -> list:
+            logger.error(f"DB Client - Error deleting entries from {table_name}: {e}")
+
+    def get_entries(
+        self, table_name: str, where_clause: str = None, params: tuple = ()
+    ) -> list:
         """
         Retrieves entries from the database using a SQL SELECT query.
 
@@ -239,16 +252,18 @@ class DBClient:
         This method uses parameterized queries to avoid SQL injection.
         """
 
+        logger = LoggerManager.get_logger(__name__)
+
         try:
             query = f"SELECT * FROM {table_name}"
             if where_clause:
                 query += f" WHERE {where_clause}"
-            self._cursor.execute(query, params)
-            return self._cursor.fetchall()
+            self.cursor.execute(query, params)
+            return self.cursor.fetchall()
         except Exception as e:
-            self._logger.error(f"DB Client - Error retrieving entries from {table_name}: {e}")
+            logger.error(f"DB Client - Error retrieving entries from {table_name}: {e}")
 
-    def close(self):
+    def close(self) -> None:
         """
         Closes the connection to the SQLite database.
 
@@ -257,7 +272,9 @@ class DBClient:
         db.close()
         """
 
+        logger = LoggerManager.get_logger(__name__)
+
         try:
-            self._conn.close()
+            self.conn.close()
         except Exception as e:
-            self._logger.error(f"DB Client - Error closing database connection: {e}")
+            logger.error(f"DB Client - Error closing database connection: {e}")

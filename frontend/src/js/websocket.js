@@ -55,7 +55,7 @@ function process_message(message){
 
 function connectWebSocket() {
 
-    socket = new WebSocket('ws://localhost:9999');
+    socket = new WebSocket('ws://localhost:8080');
 
     socket.onopen = function(event) {
         ws_connected = true;

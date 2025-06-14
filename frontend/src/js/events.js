@@ -33,6 +33,12 @@ function trigger_button(){
     }
 }
 
+function reset_button(){
+    if(control_status){
+        vision_manager.active_device.set_reset(true);
+    }
+}
+
 let continuous_trigger_state = false;
 
 function continuous_trigger_button(){

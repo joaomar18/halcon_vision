@@ -1,7 +1,5 @@
-class VisionInputs{
-    
-    constructor(name){
-        
+class VisionInputs {
+    constructor(name) {
         this.name = name;
 
         this.trigger = false;
@@ -16,33 +14,27 @@ class VisionInputs{
         this.old_continous_trigger = this.continuous_trigger;
         this.old_program_change = this.program_change;
         this.old_reset = this.reset;
-        this.old_program_number = this.program_number,
-        this.old_inputs_register = [...this.inputs_register];
+        (this.old_program_number = this.program_number),
+            (this.old_inputs_register = [...this.inputs_register]);
         this.old_inputs_variables = [...this.inputs_variables];
-
     }
-
 }
 
-class VisionOutputs{
-
-    constructor(name){
-
+class VisionOutputs {
+    constructor(name) {
         this.name = name;
 
-        this.status = {'ready':false,
-            'run':false,
-            'trigger_acknowledge':false,
-            'program_change_acknowledge':false,
-            'trigger_error':false,
-            'program_change_error':false,
-            'new_image':false
+        this.status = {
+            ready: false,
+            run: false,
+            trigger_acknowledge: false,
+            program_change_acknowledge: false,
+            trigger_error: false,
+            program_change_error: false,
+            new_image: false,
         };
 
-        this.statistics = {'min_run_time':0.0,
-                        'run_time':0.0,
-                        'max_run_time':0.0
-        };
+        this.statistics = { min_run_time: 0.0, run_time: 0.0, max_run_time: 0.0 };
         this.program_number_acknowledge = null;
         this.outputs_register = new Array();
         this.outputs_variables = new Array();
@@ -52,15 +44,11 @@ class VisionOutputs{
         this.old_program_number_acknowledge = this.program_number_acknowledge;
         this.old_outputs_register = [...this.outputs_register];
         this.old_outputs_variables = [...this.outputs_variables];
-
     }
-
 }
 
-class VisionDevice{
-
-    constructor(name){
-
+class VisionDevice {
+    constructor(name) {
         this.name = name;
         this.active = false;
         this.inputs = new VisionInputs(name);
@@ -71,16 +59,20 @@ class VisionDevice{
 
         this.camera_image_element = document.getElementById("camera_image");
 
-        this.status_elements = {'ready':document.getElementById("io_ready"),
-                                'run':document.getElementById("io_run"),
-                                'trigger_acknowledge':document.getElementById("io_trigger_ack"),
-                                'program_change_acknowledge':document.getElementById("io_prog_change_ack"),
-                                'trigger_error':document.getElementById("io_trigger_error"),
-                                'program_change_error':document.getElementById("io_prog_change_error")};
+        this.status_elements = {
+            ready: document.getElementById("io_ready"),
+            run: document.getElementById("io_run"),
+            trigger_acknowledge: document.getElementById("io_trigger_ack"),
+            program_change_acknowledge: document.getElementById("io_prog_change_ack"),
+            trigger_error: document.getElementById("io_trigger_error"),
+            program_change_error: document.getElementById("io_prog_change_error"),
+        };
 
-        this.run_time_elements = {'min_run_time':document.getElementById("io_min_run_ime"),
-                                  'run_time':document.getElementById("io_run_time"),
-                                  'max_run_time':document.getElementById("io_max_run_time")};
+        this.run_time_elements = {
+            min_run_time: document.getElementById("io_min_run_ime"),
+            run_time: document.getElementById("io_run_time"),
+            max_run_time: document.getElementById("io_max_run_time"),
+        };
 
         this.program_number_element = document.getElementById("program_number_value");
 
@@ -92,18 +84,16 @@ class VisionDevice{
 
         this.outputs_elements = new Array();
         this.outputs_types = new Array();
-
     }
 
-
-    update_inputs_variables(){
+    update_inputs_variables() {
         const inputs_variables = this.inputs_table_element.querySelectorAll("div");
-        inputs_variables.forEach(div => div.remove());
+        inputs_variables.forEach((div) => div.remove());
         this.inputs_elements.length = 0;
         this.inputs_types.length = 0;
         let i = 0;
         for (let variable of this.inputs.old_inputs_variables) {
-            if(variable != null){
+            if (variable != null) {
                 let variable_name = variable[0];
                 let variable_type = variable[1];
                 let variable_div = document.createElement("div");
@@ -133,14 +123,14 @@ class VisionDevice{
         this.update_inputs();
     }
 
-    update_outputs_variables(){
+    update_outputs_variables() {
         const outputs_variables = this.outputs_table_element.querySelectorAll("div");
-        outputs_variables.forEach(div => div.remove());
+        outputs_variables.forEach((div) => div.remove());
         this.outputs_elements.length = 0;
         this.outputs_types.length = 0;
         let i = 0;
         for (let variable of this.outputs.old_outputs_variables) {
-            if(variable != null){
+            if (variable != null) {
                 let variable_name = variable[0];
                 let variable_type = variable[1];
                 let variable_div = document.createElement("div");
@@ -165,86 +155,102 @@ class VisionDevice{
         this.update_outputs();
     }
 
-    update_program_number(){
-        this.program_number_element.value = Number(this.outputs.old_program_number_acknowledge);
-        this.program_number_element.value = String(this.program_number_element.value).padStart(3, '0');
+    update_program_number() {
+        this.program_number_element.value = String(
+            Number(this.outputs.old_program_number_acknowledge)
+        ).padStart(3, "0");
     }
 
-    update_status(){
-        this.status_elements['ready'].style.backgroundColor = this.outputs.status['ready'] ? "rgb(0, 255, 0)" : "rgb(255, 255, 255)";
-        this.status_elements['run'].style.backgroundColor = this.outputs.status['run'] ? "rgb(255, 255, 0)" : "rgb(255, 255, 255)";
-        this.status_elements['trigger_acknowledge'].style.backgroundColor = this.outputs.status['trigger_acknowledge'] ? "rgb(0, 255, 0)" : "rgb(255, 255, 255)";
-        this.status_elements['program_change_acknowledge'].style.backgroundColor = this.outputs.status['program_change_acknowledge'] ? "rgb(0, 255, 0)" : "rgb(255, 255, 255)";
-        this.status_elements['trigger_error'].style.backgroundColor = this.outputs.status['trigger_error'] ? "rgb(255, 0, 0)" : "rgb(255, 255, 255)";
-        this.status_elements['program_change_error'].style.backgroundColor = this.outputs.status['program_change_error'] ? "rgb(255, 0, 0)" : "rgb(255, 255, 255)";
+    update_status() {
+        this.status_elements["ready"].style.backgroundColor = this.outputs.status["ready"]
+            ? "rgb(0, 255, 0)"
+            : "rgb(255, 255, 255)";
+        this.status_elements["run"].style.backgroundColor = this.outputs.status["run"]
+            ? "rgb(255, 255, 0)"
+            : "rgb(255, 255, 255)";
+        this.status_elements["trigger_acknowledge"].style.backgroundColor = this.outputs.status[
+            "trigger_acknowledge"
+        ]
+            ? "rgb(0, 255, 0)"
+            : "rgb(255, 255, 255)";
+        this.status_elements["program_change_acknowledge"].style.backgroundColor = this.outputs
+            .status["program_change_acknowledge"]
+            ? "rgb(0, 255, 0)"
+            : "rgb(255, 255, 255)";
+        this.status_elements["trigger_error"].style.backgroundColor = this.outputs.status[
+            "trigger_error"
+        ]
+            ? "rgb(255, 0, 0)"
+            : "rgb(255, 255, 255)";
+        this.status_elements["program_change_error"].style.backgroundColor = this.outputs.status[
+            "program_change_error"
+        ]
+            ? "rgb(255, 0, 0)"
+            : "rgb(255, 255, 255)";
     }
 
-    update_image(){
+    update_image() {
         const newImage = new Image();
-        newImage.src = "../../hdevelop/"+this.name+"/output/output_image.jpg?t=" + new Date().getTime();
+        newImage.src =
+            "../../hdevelop/" + this.name + "/output/output_image.jpg?t=" + new Date().getTime();
         newImage.onload = () => {
             this.camera_image_element.style.backgroundImage = "url('" + newImage.src + "')";
         };
     }
 
-    update_min_run_time(){
-        this.run_time_elements['min_run_time'].value = (this.outputs.statistics['min_run_time']*1000).toFixed(2) + " ms";
+    update_min_run_time() {
+        this.run_time_elements["min_run_time"].value =
+            (this.outputs.statistics["min_run_time"] * 1000).toFixed(2) + " ms";
     }
 
-    update_run_time(){
-        this.run_time_elements['run_time'].value = (this.outputs.statistics['run_time']*1000).toFixed(2) + " ms";
+    update_run_time() {
+        this.run_time_elements["run_time"].value =
+            (this.outputs.statistics["run_time"] * 1000).toFixed(2) + " ms";
     }
 
-    update_max_run_time(){
-        this.run_time_elements["max_run_time"].value = (this.outputs.statistics['max_run_time']*1000).toFixed(2) + " ms";
+    update_max_run_time() {
+        this.run_time_elements["max_run_time"].value =
+            (this.outputs.statistics["max_run_time"] * 1000).toFixed(2) + " ms";
     }
 
-    update_inputs(){
+    update_inputs() {
         let i = 0;
-        for(let value of this.inputs.old_inputs_register){
-            if(i >= this.inputs_elements.length){
+        for (let value of this.inputs.old_inputs_register) {
+            if (i >= this.inputs_elements.length) {
                 break;
             }
-            if(this.inputs_types[i] == 'float'){
+            if (this.inputs_types[i] == "float") {
                 this.inputs_elements[i].value = Number(value).toFixed(2);
-            }
-            else if(this.inputs_types[i] == 'string'){
+            } else if (this.inputs_types[i] == "string") {
                 this.inputs_elements[i].value = value;
-            }
-            else if(this.inputs_types[i] == 'int'){
+            } else if (this.inputs_types[i] == "int") {
                 this.inputs_elements[i].value = parseInt(value);
             }
             i++;
         }
     }
 
-    update_outputs(){
-
+    update_outputs() {
         let i = 0;
-        for(let value of this.outputs.old_outputs_register){
-            if(i >= this.outputs_elements.length){
+        for (let value of this.outputs.old_outputs_register) {
+            if (i >= this.outputs_elements.length) {
                 break;
             }
-            if(value == 'None'){
-                this.outputs_elements[i].value = '';
-            }
-            else if(this.outputs_types[i] == 'float'){
+            if (value == "None") {
+                this.outputs_elements[i].value = "";
+            } else if (this.outputs_types[i] == "float") {
                 this.outputs_elements[i].value = Number(value).toFixed(2);
-            }
-            else if(this.outputs_types[i] == 'string'){
+            } else if (this.outputs_types[i] == "string") {
                 this.outputs_elements[i].value = value;
-            }
-            else if(this.outputs_types[i] == 'int'){
+            } else if (this.outputs_types[i] == "int") {
                 this.outputs_elements[i].value = parseInt(value);
             }
             i++;
         }
     }
 
-
-
-    set_active(state){
-        if(state){
+    set_active(state) {
+        if (state) {
             this.active = true;
             this.update_image();
             this.update_inputs_variables();
@@ -256,105 +262,124 @@ class VisionDevice{
             this.update_outputs_variables();
             this.update_outputs();
             this.update_program_number();
-        }
-        else{
+        } else {
             this.active = false;
         }
     }
 
-    set_trigger(state){
-        if(this.active){
-            if(this.inputs.trigger == false && this.outputs.status['trigger_acknowledge'] == false && state == true){
-                let message = {'peripheral':this.name,
-                    'type':'request',
-                    'section':'control',
-                    'data':'trigger',
-                    'value':String(state)};
+    set_trigger(state) {
+        if (this.active) {
+            if (
+                this.inputs.trigger == false &&
+                this.outputs.status["trigger_acknowledge"] == false &&
+                state == true
+            ) {
+                let message = {
+                    peripheral: this.name,
+                    type: "request",
+                    section: "control",
+                    data: "trigger",
+                    value: String(state),
+                };
                 socket.send(JSON.stringify(message));
                 this.inputs.trigger = true;
-            }
-            else if(this.inputs.trigger == true && state == false){
-                let message = {'peripheral':this.name,
-                    'type':'request',
-                    'section':'control',
-                    'data':'trigger',
-                    'value':String(state)};
+            } else if (this.inputs.trigger == true && state == false) {
+                let message = {
+                    peripheral: this.name,
+                    type: "request",
+                    section: "control",
+                    data: "trigger",
+                    value: String(state),
+                };
                 socket.send(JSON.stringify(message));
                 this.inputs.trigger = false;
             }
         }
     }
 
-    set_continuous_trigger(state){
-        if(this.active){
-            if(state){
+    set_continuous_trigger(state) {
+        if (this.active) {
+            if (state) {
                 this.set_trigger(true);
             }
             this.inputs.continuous_trigger = state;
         }
     }
 
-    set_program_change(state){
-        if(this.active){
-            let message = {'peripheral':this.name,
-                'type':'request',
-                'section':'control',
-                'data':'program_change',
-                'value':String(state)};      
+    set_program_change(state) {
+        if (this.active) {
+            let message = {
+                peripheral: this.name,
+                type: "request",
+                section: "control",
+                data: "program_change",
+                value: String(state),
+            };
             socket.send(JSON.stringify(message));
             this.inputs.program_change = state;
         }
     }
 
-    set_reset(state){
-        if(this.active){
-            let message = {'peripheral':this.name,
-                'type':'request',
-                'section':'control',
-                'data':'reset',
-                'value':String(state)};      
+    set_reset(state) {
+        if (this.active) {
+            let message = {
+                peripheral: this.name,
+                type: "request",
+                section: "control",
+                data: "reset",
+                value: String(state),
+            };
             socket.send(JSON.stringify(message));
-            this.inputs.reset = state;
+            this.inputs.reset = false;
         }
     }
 
-    set_program_number(program_number){
-        if(this.active){
-            let message = {'peripheral':this.name,
-                'type':'request',
-                'section':'program_number',
-                'value':String(program_number)};
+    set_program_number(program_number) {
+        if (this.active) {
+            let message = {
+                peripheral: this.name,
+                type: "request",
+                section: "program_number",
+                value: String(program_number),
+            };
             socket.send(JSON.stringify(message));
             this.inputs.program_number = program_number;
         }
     }
-    set_input_register(index, type, value){
-        if(this.active){
-            let message = {'peripheral':this.name,
-                'type':'request',
-                'section':'inputs_register',
-                'index':String(index),
-                'value_type':String(type),
-                'value':String(value)};
+    set_input_register(index, type, value) {
+        if (this.active) {
+            let message = {
+                peripheral: this.name,
+                type: "request",
+                section: "inputs_register",
+                index: String(index),
+                value_type: String(type),
+                value: String(value),
+            };
             socket.send(JSON.stringify(message));
-            this.inputs.inputs_register[index] = value;            
+            this.inputs.inputs_register[index] = value;
         }
     }
 
-
     detectInputsChanges() {
-        if (JSON.stringify(this.inputs.inputs_register) !== JSON.stringify(this.inputs.old_inputs_register)) {
+        if (
+            JSON.stringify(this.inputs.inputs_register) !==
+            JSON.stringify(this.inputs.old_inputs_register)
+        ) {
             this.inputs.old_inputs_register = [...this.inputs.inputs_register];
 
-            if(this.active){
+            if (this.active) {
                 this.update_inputs();
             }
         }
 
-        if (JSON.stringify(this.inputs.inputs_variables) != JSON.stringify(this.inputs.old_inputs_variables)) {
+        if (
+            JSON.stringify(this.inputs.inputs_variables) !=
+            JSON.stringify(this.inputs.old_inputs_variables)
+        ) {
             this.inputs.old_inputs_variables = [...this.inputs.inputs_variables];
 
-            if(this.active){
+            if (this.active) {
                 this.update_inputs_variables();
             }
         }
@@ -362,73 +387,99 @@ class VisionDevice{
 
     detectOutputsChanges() {
         if (JSON.stringify(this.outputs.status) !== JSON.stringify(this.outputs.old_status)) {
-
-            if(this.active){
-               this.update_status();
+            if (this.active) {
+                this.update_status();
             }
-           
-            if(this.outputs.status['new_image'] == true && this.outputs.old_status['new_image'] == false){
-                if(this.active){
+
+            if (this.outputs.status["new_image"] != this.outputs.old_status["new_image"]) {
+                if (this.active) {
                     this.update_image();
-                    if(this.inputs.continuous_trigger){
+                    if (this.inputs.continuous_trigger) {
                         let new_trigger_handler = setInterval(() => {
-                            if(this.outputs.status['ready']){
+                            if (this.outputs.status["ready"]) {
                                 this.set_trigger(true);
                                 clearInterval(new_trigger_handler);
                             }
-                        },10);
+                        }, 10);
                     }
                 }
             }
 
-            if(this.outputs.status['trigger_acknowledge'] == true && this.outputs.old_status['trigger_acknowledge'] == false
-                || this.outputs.status['trigger_error'] == true && this.outputs.old_status['trigger_error'] == false){
-                    this.set_trigger(false);
+            if (
+                (this.outputs.status["trigger_acknowledge"] == true &&
+                    this.outputs.old_status["trigger_acknowledge"] == false) ||
+                (this.outputs.status["trigger_error"] == true &&
+                    this.outputs.old_status["trigger_error"] == false)
+            ) {
+                this.set_trigger(false);
             }
 
-
-            if(this.outputs.status['program_change_acknowledge'] == true && this.outputs.old_status['program_change_acknowledge'] == false
-            || this.outputs.status['program_change_error'] == true && this.outputs.old_status['program_change_error'] == false){
+            if (
+                (this.outputs.status["program_change_acknowledge"] == true &&
+                    this.outputs.old_status["program_change_acknowledge"] == false) ||
+                (this.outputs.status["program_change_error"] == true &&
+                    this.outputs.old_status["program_change_error"] == false)
+            ) {
                 this.set_program_change(false);
             }
 
             this.outputs.old_status = { ...this.outputs.status };
         }
 
-        if (JSON.stringify(this.outputs.statistics) !== JSON.stringify(this.outputs.old_statistics)) {
-            if(this.active){
-                if(this.outputs.statistics['min_run_time'] != this.outputs.old_statistics['min_run_time']){
+        if (
+            JSON.stringify(this.outputs.statistics) !== JSON.stringify(this.outputs.old_statistics)
+        ) {
+            if (this.active) {
+                if (
+                    this.outputs.statistics["min_run_time"] !=
+                    this.outputs.old_statistics["min_run_time"]
+                ) {
                     this.update_min_run_time();
                 }
-                if(this.outputs.statistics['run_time'] != this.outputs.old_statistics['run_time']){
+                if (
+                    this.outputs.statistics["run_time"] != this.outputs.old_statistics["run_time"]
+                ) {
                     this.update_run_time();
                 }
-                if(this.outputs.statistics['max_run_time'] != this.outputs.old_statistics['max_run_time']){
+                if (
+                    this.outputs.statistics["max_run_time"] !=
+                    this.outputs.old_statistics["max_run_time"]
+                ) {
                     this.update_max_run_time();
-                }  
+                }
             }
-   
+
             this.outputs.old_statistics = { ...this.outputs.statistics };
         }
 
-        if (this.outputs.program_number_acknowledge !== this.outputs.old_program_number_acknowledge) {
+        if (
+            this.outputs.program_number_acknowledge !=
+                this.outputs.old_program_number_acknowledge ||
+            (this.program_number_element.value != this.outputs.old_program_number_acknowledge &&
+                this.outputs.status["program_change_error"])
+        ) {
             this.outputs.old_program_number_acknowledge = this.outputs.program_number_acknowledge;
-            if(this.active){
+            if (this.active) {
                 this.update_program_number();
             }
         }
 
-        if (JSON.stringify(this.outputs.outputs_register) !== JSON.stringify(this.outputs.old_outputs_register)) {
+        if (
+            JSON.stringify(this.outputs.outputs_register) !==
+            JSON.stringify(this.outputs.old_outputs_register)
+        ) {
             this.outputs.old_outputs_register = [...this.outputs.outputs_register];
-            console.log(this.outputs.old_outputs_register);
-            if(this.active){
+            if (this.active) {
                 this.update_outputs();
             }
         }
 
-        if (JSON.stringify(this.outputs.outputs_variables) !== JSON.stringify(this.outputs.old_outputs_variables)) {
+        if (
+            JSON.stringify(this.outputs.outputs_variables) !==
+            JSON.stringify(this.outputs.old_outputs_variables)
+        ) {
             this.outputs.old_outputs_variables = [...this.outputs.outputs_variables];
-            if(this.active){
+            if (this.active) {
                 this.update_outputs_variables();
             }
         }
@@ -445,35 +496,30 @@ class VisionDevice{
             this.detectOutputsChanges();
         }, 10);
     }
-
 }
 
-class VisionManager{
-    constructor(){
+class VisionManager {
+    constructor() {
         this.vision_devices = {};
         this.active_device = null;
     }
 
-    add_vision_device(name){
+    add_vision_device(name) {
         this.vision_devices[name] = new VisionDevice(name);
     }
 
-    select_device(name){
-
+    select_device(name) {
         for (let name in this.vision_devices) {
             this.vision_devices[name].set_active(false);
         }
 
-        if(name in this.vision_devices){
-            this.active_device = this.vision_devices[name]; 
+        if (name in this.vision_devices) {
+            this.active_device = this.vision_devices[name];
             this.vision_devices[name].set_active(true);
-        }
-        else{
+        } else {
             this.active_device = null;
         }
-
     }
 }
 
-vision_manager = new VisionManager()
-
+vision_manager = new VisionManager();

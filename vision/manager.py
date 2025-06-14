@@ -1,49 +1,43 @@
-from vision.data.comm import VisionCommunication
-from vision.system import VisionSystem        
-from vision.data.variables import *
-from db.client import DBClient
-import logging
+###########EXTERNAL IMPORTS############
+
 import asyncio
-import datetime
+
+#######################################
+
+#############LOCAL IMPORTS#############
+
+from vision.system import VisionSystem
+from vision.data.variables import *
+from util.debug import LoggerManager
+
+#######################################
+
 
 class VisionManager:
     """
-    VisionManager is responsible for managing multiple VisionSystem instances and 
+    VisionManager is responsible for managing multiple VisionSystem instances and
     handling incoming/outgoing messages via asynchronous queues.
 
     Attributes:
-        _receiver_queue (asyncio.Queue): Queue for receiving incoming messages.
-        _send_queue (asyncio.Queue): Queue for sending outgoing messages.
-        _vision_systems (Dict[str, VisionSystem]): A dictionary of VisionSystem instances.
-        _vision_systems_name (Set[str]): A set of vision system names.
-        _db_client (DBClient): Database client for logging errors.
-        _logger (logging.Logger): Logger for logging events and errors.
+        receiver_queue (asyncio.Queue): Queue for receiving incoming messages.
+        send_queue (asyncio.Queue): Queue for sending outgoing messages.
+        vision_systems (Dict[str, VisionSystem]): A dictionary of VisionSystem instances.
+        vision_systems_name (Set[str]): A set of vision system names.
     """
 
-    def __init__(self, receiver_queue: asyncio.Queue, send_queue: asyncio.Queue, db_client: DBClient, logger: logging.Logger):
-        """
-        Initialize the VisionManager with receiver and send queues.
+    def __init__(self, receiver_queue: asyncio.Queue, send_queue: asyncio.Queue):
 
-        Args:
-            receiver_queue (asyncio.Queue): Queue for receiving incoming messages.
-            send_queue (asyncio.Queue): Queue for sending outgoing messages.
-            db_client (DBClient): Database client for error logging.
-            logger (logging.Logger): Logger for logging events and errors.
-        """
+        logger = LoggerManager.get_logger(__name__)
+
         try:
-            self._receiver_queue = receiver_queue
-            self._send_queue = send_queue
-            self._db_client = db_client
-            self._logger = logger
-            self._vision_systems: dict[str, VisionSystem] = {}
-            self._vision_systems_name: set[str] = set()
-            self._db_client.create_table('vision_manager_error', [
-                                        'id INTEGER PRIMARY KEY',
-                                        'message TEXT',
-                                        'date TEXT'])
+            self.receiver_queue = receiver_queue
+            self.send_queue = send_queue
+            self.vision_systems: dict[str, VisionSystem] = {}
+            self.vision_systems_name: set[str] = set()
+
             asyncio.create_task(self._process_receiver_queue())
         except Exception as e:
-            self._log_and_store_error(f"Vision Manager - Error initializing", e)
+            logger.error(f"Vision Manager - Error initializing", e)
 
     async def add_vision_system(self, new_vision_system: VisionSystem):
         """
@@ -53,19 +47,25 @@ class VisionManager:
             new_vision_system (VisionSystem): The VisionSystem instance to add.
         """
 
-        if new_vision_system.name in self._vision_systems:
-            self._logger.warning(f"Vision Manager - VisionSystem {new_vision_system.name} already exists, skipping.")
+        logger = LoggerManager.get_logger(__name__)
+
+        if new_vision_system.name in self.vision_systems:
+            logger.warning(
+                f"Vision Manager - VisionSystem {new_vision_system.name} already exists, skipping."
+            )
             return
-        
+
         try:
-            self._vision_systems[new_vision_system.name] = new_vision_system
-            new_vision_system.set_update_queue(self._send_queue)
-            self._vision_systems_name.add(new_vision_system.name)
-            
+            self.vision_systems[new_vision_system.name] = new_vision_system
+            new_vision_system.set_update_queue(self.send_queue)
+            self.vision_systems_name.add(new_vision_system.name)
+
             await new_vision_system.init()
 
         except Exception as e:
-            self._log_and_store_error(f"Vision Manager - Error adding VisionSystem {new_vision_system.name}", e)
+            logger.error(
+                f"Vision Manager - Error adding Vision System {new_vision_system.name}: {e}"
+            )
 
     async def remove_vision_system(self, vision_system_name: str):
         """
@@ -75,18 +75,26 @@ class VisionManager:
             vision_system_name (str): The name of the VisionSystem to remove.
         """
 
-        if vision_system_name not in self._vision_systems:
-            self._logger.warning(f"Vision Manager - VisionSystem {vision_system_name} does not exist")
+        logger = LoggerManager.get_logger(__name__)
+
+        if vision_system_name not in self.vision_systems:
+            logger.warning(
+                f"Vision Manager - Vision System {vision_system_name} does not exist"
+            )
             return
-        
+
         try:
-            del self._vision_systems[vision_system_name]
-            self._vision_systems_name.remove(vision_system_name)
+            del self.vision_systems[vision_system_name]
+            self.vision_systems_name.remove(vision_system_name)
         except KeyError as e:
-            self._log_and_store_error(f"Vision Manager - KeyError while removing VisionSystem {vision_system_name}", e)
+            logger.error(
+                f"Vision Manager - KeyError while removing Vision System {vision_system_name}: {e}"
+            )
         except Exception as e:
-            self._log_and_store_error(f"Vision Manager - Error removing VisionSystem {vision_system_name}", e)
-    
+            logger.error(
+                f"Vision Manager - Error removing Vision System {vision_system_name}: {e}"
+            )
+
     def get_vision_system_devices(self) -> list[str]:
         """
         Get the list of vision system devices.
@@ -95,21 +103,23 @@ class VisionManager:
             List[str]: A list of vision system names.
         """
 
-        return list(self._vision_systems.keys())
+        return list(self.vision_systems.keys())
 
     async def _process_receiver_queue(self):
         """
         Continuously process messages from the receiver queue.
         """
 
+        logger = LoggerManager.get_logger(__name__)
+
         while True:
             try:
-                message = await self._receiver_queue.get()
-                await self._process_received_message(message)
+                message = await self.receiver_queue.get()
+                await self.process_received_message(message)
             except Exception as e:
-                self._log_and_store_error(f"Vision Manager - Error processing received message", e)
+                logger.error(f"Vision Manager - Error processing received message: {e}")
 
-    async def _process_received_message(self, message: dict):
+    async def process_received_message(self, message: dict):
         """
         Process a received message and route it to the appropriate handler.
 
@@ -117,26 +127,30 @@ class VisionManager:
             message (Dict[str, Any]): The received message to process.
         """
 
+        logger = LoggerManager.get_logger(__name__)
+
         try:
             peripheral = message.get(PERIPHERAL_KEY)
             if not peripheral:
-                raise ValueError("peripheral key is not in message")
-            
-            if peripheral == 'frontend':
-                await self._handle_frontend_message(message)
-            elif peripheral in self._vision_systems_name:
-                await self._handle_vision_system_message(peripheral, message)
+                raise KeyError("peripheral key is not in message")
+
+            if peripheral == "frontend":
+                await self.handle_frontend_message(message)
+            elif peripheral in self.vision_systems_name:
+                await self.handle_vision_system_message(peripheral, message)
             else:
                 raise ValueError(f"Unknown peripheral: {peripheral}")
 
         except KeyError as e:
-            self._log_and_store_error(f"Vision Manager - Missing key in message", e)
+            logger.warning(f"Vision Manager - Missing key in message: {e}")
         except ValueError as e:
-            self._log_and_store_error(f"Vision Manager - ValueError", e)
+            logger.warning(f"Vision Manager - ValueError: {e}")
         except Exception as e:
-            self._log_and_store_error(f"Vision Manager - General error in _process_received_message", e)
+            logger.error(
+                f"Vision Manager - General error in process_received_message: {e}"
+            )
 
-    async def _handle_frontend_message(self, message: dict):
+    async def handle_frontend_message(self, message: dict):
         """
         Handle messages coming from the frontend.
 
@@ -144,24 +158,31 @@ class VisionManager:
             message (Dict[str, Any]): The message from the frontend.
         """
 
-        try:
-            if message.get(TYPE_KEY) == 'status' and message.get(DATA_KEY) == 'connected':
-                response = {
-                    PERIPHERAL_KEY: 'manager',
-                    TYPE_KEY: 'response',
-                    DATA_KEY: self.get_vision_system_devices()
-                }
-                await self._send_queue.put(response)
+        logger = LoggerManager.get_logger(__name__)
 
-                for vision_system in self._vision_systems.values():
+        try:
+            if (
+                message.get(TYPE_KEY) == "status"
+                and message.get(DATA_KEY) == "connected"
+            ):
+                response = {
+                    PERIPHERAL_KEY: "manager",
+                    TYPE_KEY: "response",
+                    DATA_KEY: self.get_vision_system_devices(),
+                }
+                await self.send_queue.put(response)
+
+                for vision_system in self.vision_systems.values():
                     await vision_system.process_incoming_messages(message)
 
             else:
                 raise ValueError(f"Invalid message from frontend: {message}")
         except Exception as e:
-            self._log_and_store_error(f"Vision Manager - Error processing frontend message", e)
+            logger.error(f"Vision Manager - Error processing frontend message: {e}")
 
-    async def _handle_vision_system_message(self, vision_system_name: str, message: dict):
+    async def handle_vision_system_message(
+        self, vision_system_name: str, message: dict
+    ):
         """
         Handle messages coming to a vision system.
 
@@ -170,30 +191,17 @@ class VisionManager:
             message (Dict[str, Any]): The message to process.
         """
 
-        vision_system = self._vision_systems.get(vision_system_name)
+        logger = LoggerManager.get_logger(__name__)
+
+        vision_system = self.vision_systems.get(vision_system_name)
         if vision_system:
             try:
                 await vision_system.process_incoming_messages(message)
             except Exception as e:
-                self._log_and_store_error(f"Vision Manager - Error processing vision system {vision_system_name} message", e)
+                logger.error(
+                    f"Vision Manager - Error processing vision system {vision_system_name} message: {e}"
+                )
         else:
-            self._log_and_store_error(f"Vision Manager - Unknown vision system: {vision_system_name}", None)
-
-    def _log_and_store_error(self, message: str, exception: Exception = None):
-        """
-        Log and store error messages in the database.
-
-        Args:
-            message (str): The error message to log and store.
-            exception (Exception, optional): The exception that triggered the error, if any.
-        """
-        try:
-            if exception:
-                full_message = f"{message} | Exception: {repr(exception)}"
-            else:
-                full_message = message
-            self._logger.error(full_message)
-            self._db_client.insert_entry(f'vision_manager_error', ['message', 'date'], [full_message, str(datetime.datetime.now())])
-
-        except Exception as e:
-            self._logger.error(f"Vision Manager - Error logging and storing error: {e}")
+            logger.warning(
+                f"Vision Manager - Unknown vision system: {vision_system_name}"
+            )
