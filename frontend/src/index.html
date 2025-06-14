@@ -1,156 +1,168 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <link rel="stylesheet" type="text/css" href="css/style.css" />
-    <link rel="icon" type="image/png" href="img/logo.png" sizes="16x16">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VisionSys</title>
-    <script type = "text/javascript" src = "js/data.js"></script>
-    <script type = "text/javascript" src= "js/websocket.js"></script>
-</head>
-<body>
+    <head>
+        <link rel="stylesheet" type="text/css" href="css/style.css" />
+        <link rel="icon" type="image/png" href="img/logo.png" sizes="16x16" />
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>VisionSys</title>
+        <script type="text/javascript" src="js/data.js"></script>
+        <script type="text/javascript" src="js/websocket.js"></script>
+    </head>
+    <body>
+        <div id="side_bar">
+            <div id="side_bar_content">
+                <div id="buttons_div">
+                    <div class="side_bar_button" id="view_button">
+                        <span>1X</span>
+                        <button></button>
+                    </div>
 
-    <div id = "side_bar">
-        <div id = "side_bar_content">
-            <div id = "buttons_div">
+                    <div class="side_bar_button" id="inputs_outputs_button">
+                        <div class="state_div" id="inputs_outputs_state"></div>
+                        <button onclick="invert_inputs_outputs_display()"></button>
+                    </div>
 
-                <div class = "side_bar_button" id = "view_button">
-                    <span>1X</span>
-                    <button></button>
-                </div>     
+                    <div class="side_bar_button" id="control_button">
+                        <div class="state_div" id="control_state"></div>
+                        <button onclick="invert_control_status()"></button>
+                    </div>
 
-                <div class = "side_bar_button" id = "inputs_outputs_button">
-                    <div class = "state_div" id = "inputs_outputs_state"></div>
-                    <button onclick = "invert_inputs_outputs_display()"></button>
-                </div>  
+                    <div class="side_bar_button" id="history_button">
+                        <button></button>
+                    </div>
 
-                <div class = "side_bar_button" id = "control_button">
-                    <div class = "state_div" id = "control_state"></div>
-                    <button onclick="invert_control_status()"></button>
-                </div>
-
-                <div class = "side_bar_button" id = "history_button">
-                    <button></button>
-                </div>
-
-                <div class = "side_bar_button" id = "connection_state">
-                    <div class = "state_div" id = "connection_status"></div>
+                    <div class="side_bar_button" id="connection_state">
+                        <div class="state_div" id="connection_status"></div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div id = "footer">
-        <div id = "footer_content">
-            <div id = "select_camera_div">
-                <span>Select Camera</span>
-                <select id = "camera_devices_select" onchange="camera_change()">
-                </select>
+        <div id="footer">
+            <div id="footer_content">
+                <div id="select_camera_div">
+                    <span>Select Camera</span>
+                    <select id="camera_devices_select" onchange="camera_change()"></select>
+                </div>
+                <img id="halcon_logo" src="img/halcon.png" />
             </div>
-            <img id = "halcon_logo" src="img/halcon.png" />
-            <img id = "endovis_logo" src = "img/endovis.png" />
         </div>
-    </div>
 
-    <div id ="camera_div">
-        <div id = "camera_image">
-            <div id = "camera_image_header">
-
-                <div id = "camera_image_header_content">
-
-                    <h3 id = "active_camera_name">No Camera Selected</h3>
-                    <div id = "program_number_div">
-                        <span>Prog. No.</span>
-                        <input type = "number" class = "value" id = "program_number_value" min="0" max="999" value = "000" onchange="program_number_changed()" />
-                    </div>
-                    <div id = "buttons_div">
-                        <div class = "button" id = "trigger_button" aria-label="single trigger" onclick="trigger_button()"></div>
-                        <div class = "button" id = "continuous_trigger_button" aria-label="continuous trigger" onclick = "continuous_trigger_button()"></div>
-                        <div class = "button" id = "reset_button" aria-label="reset" onclick="reset_button()"></div>
-                    </div>
-
-                </div>
-
-            </div>
-
-            <div id = "camera_image_right">
-
-                <div id = "camera_image_right_content">
-
-                    <div id = "buttons_div">
-                        <div class = "button" id = "inputs_button" aria-label="inputs"></div>
-                        <div class = "button" id = "outputs_button" aria-label="outputs"></div>
-                        <div class = "button" id = "historic_button" aria-label="historic"></div>
-                        <div class = "button" id = "configuration_button" aria-label="configuration"></div>
-                    </div>
-
-                    <div id = "status_div">
-                        <h5>Status</h5>
-                        <div>
-                            <span>Ready</span>
-                            <div class = "io_circle" id = "io_ready"></div>
+        <div id="camera_div">
+            <div id="camera_image">
+                <div id="camera_image_header">
+                    <div id="camera_image_header_content">
+                        <h3 id="active_camera_name">No Camera Selected</h3>
+                        <div id="program_number_div">
+                            <span>Prog. No.</span>
+                            <input
+                                type="number"
+                                class="value"
+                                id="program_number_value"
+                                min="0"
+                                max="999"
+                                value="000"
+                                onchange="program_number_changed()"
+                            />
                         </div>
-                        <div>
-                            <span>Running</span>
-                            <div class = "io_circle" id = "io_run"></div>
+                        <div id="buttons_div">
+                            <div
+                                class="button"
+                                id="trigger_button"
+                                aria-label="single trigger"
+                                onclick="trigger_button()"
+                            ></div>
+                            <div
+                                class="button"
+                                id="continuous_trigger_button"
+                                aria-label="continuous trigger"
+                                onclick="continuous_trigger_button()"
+                            ></div>
+                            <div
+                                class="button"
+                                id="reset_button"
+                                aria-label="reset"
+                                onclick="reset_button()"
+                            ></div>
                         </div>
-                        <div>
-                            <span>Trigger Ack.</span>
-                            <div class = "io_circle" id = "io_trigger_ack"></div>
-                        </div>
-                        <div>
-                            <span>Prog. Change Ack.</span>
-                            <div class = "io_circle" id = "io_prog_change_ack"></div>
-                        </div>
-                        <div>
-                            <span>Trigger Error</span>
-                            <div class = "io_circle" id = "io_trigger_error"></div>
-                        </div>
-                        <div>
-                            <span>Prog. Change Error</span>
-                            <div class = "io_circle" id = "io_prog_change_error"></div>
-                        </div>
-                    </div>
-
-                    <div id = "statistics_div">
-                        <h5>Statistics</h5>
-                        <div>
-                            <span>Min. Run Time</span>
-                            <input type="text" id = "io_min_run_ime" disabled />
-                        </div>
-                        <div>
-                            <span>Run Time</span>
-                            <input type="text" id = "io_run_time" disabled />
-                        </div>
-                        <div>
-                            <span>Max. Run Time</span>
-                            <input type="text" id = "io_max_run_time" disabled />
-                        </div>
-                    </div>
-
-                </div>
-
-            </div>
-
-            <div id = "camera_image_left">
-
-                <div id = "camera_image_left_content">
-                    <div id = "inputs_div">
-                        <h5>Inputs</h5>
-                    </div>
-
-                    <div id = "outputs_div">
-                        <h5>Outputs</h5>
                     </div>
                 </div>
 
-            </div>
+                <div id="camera_image_right">
+                    <div id="camera_image_right_content">
+                        <div id="buttons_div">
+                            <div class="button" id="inputs_button" aria-label="inputs"></div>
+                            <div class="button" id="outputs_button" aria-label="outputs"></div>
+                            <div class="button" id="historic_button" aria-label="historic"></div>
+                            <div
+                                class="button"
+                                id="configuration_button"
+                                aria-label="configuration"
+                            ></div>
+                        </div>
 
+                        <div id="status_div">
+                            <h5>Status</h5>
+                            <div>
+                                <span>Ready</span>
+                                <div class="io_circle" id="io_ready"></div>
+                            </div>
+                            <div>
+                                <span>Running</span>
+                                <div class="io_circle" id="io_run"></div>
+                            </div>
+                            <div>
+                                <span>Trigger Ack.</span>
+                                <div class="io_circle" id="io_trigger_ack"></div>
+                            </div>
+                            <div>
+                                <span>Prog. Change Ack.</span>
+                                <div class="io_circle" id="io_prog_change_ack"></div>
+                            </div>
+                            <div>
+                                <span>Trigger Error</span>
+                                <div class="io_circle" id="io_trigger_error"></div>
+                            </div>
+                            <div>
+                                <span>Prog. Change Error</span>
+                                <div class="io_circle" id="io_prog_change_error"></div>
+                            </div>
+                        </div>
+
+                        <div id="statistics_div">
+                            <h5>Statistics</h5>
+                            <div>
+                                <span>Min. Run Time</span>
+                                <input type="text" id="io_min_run_ime" disabled />
+                            </div>
+                            <div>
+                                <span>Run Time</span>
+                                <input type="text" id="io_run_time" disabled />
+                            </div>
+                            <div>
+                                <span>Max. Run Time</span>
+                                <input type="text" id="io_max_run_time" disabled />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="camera_image_left">
+                    <div id="camera_image_left_content">
+                        <div id="inputs_div">
+                            <h5>Inputs</h5>
+                        </div>
+
+                        <div id="outputs_div">
+                            <h5>Outputs</h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-    </div>
-    <script type = "text/javascript" src = "js/vision.js"></script>
-    <script type = "text/javascript" src = "js/visualization.js"></script> 
-    <script type = "text/javascript" src = "js/events.js"></script>
-</body>
+        <script type="text/javascript" src="js/vision.js"></script>
+        <script type="text/javascript" src="js/visualization.js"></script>
+        <script type="text/javascript" src="js/events.js"></script>
+    </body>
 </html>
