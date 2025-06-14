@@ -1,7 +1,9 @@
 import asyncio
 import json
 import websockets
+
 from websockets.exceptions import ConnectionClosed
+from websockets.legacy.server import WebSocketServerProtocol
 from db.client import DBClient
 import logging
 import datetime
@@ -48,13 +50,12 @@ class WebSocketServer:
         except Exception as e:
             self._log_and_store_error(f"WebSocket Server - Error initializing", e)
 
-    async def handle_client(self, websocket: websockets.WebSocketServerProtocol, path: str):
+    async def handle_client(self, websocket: WebSocketServerProtocol):
         """
         Handle incoming WebSocket client connection and message reception.
 
         Args:
             websocket (websockets.WebSocketServerProtocol): The WebSocket connection instance.
-            path (str): The WebSocket connection path.
         """
         async with self._lock:
             if self._client:
@@ -122,7 +123,11 @@ class WebSocketServer:
 
         try:
             self._logger.info(f"WebSocket Server - Starting on {self._host}:{self._port}")
-            async with websockets.serve(self.handle_client, self._host, self._port):
+
+            async def connection_handler(websocket):
+                await self.handle_client(websocket)
+
+            async with websockets.serve(connection_handler, self._host, self._port):
                 self._running = True
                 asyncio.create_task(self.process_send_messages())
                 await asyncio.Future()

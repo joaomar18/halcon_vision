@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<hdevelop file_version="1.2" halcon_version="22.11.3.0">
+<hdevelop file_version="1.2" halcon_version="24.11.1.0">
 <procedure name="main">
 <interface/>
 <body>
@@ -136,9 +136,9 @@
 <l>ModelsWidth := []</l>
 <l>ModelsHeight := []</l>
 <c></c>
-<l>GetAllModels('/home/joao/Desktop/halcon_pulleys/hdevelop/FinalInspCamera/models', '/home/joao/Desktop/halcon_pulleys/hdevelop/FinalInspCamera/regions')</l>
+<l>GetAllModels('/home/joao/Desktop/halcon-vision/halcon_vision/hdevelop/FinalInspCamera/models', '/home/joao/Desktop/halcon-vision/halcon_vision/hdevelop/FinalInspCamera/regions')</l>
 <c></c>
-<l>open_framegrabber ('File', 1, 1, 0, 0, 0, 0, 'default', -1, 'default', -1, 'false', '/home/joao/Desktop/halcon_pulleys/hdevelop/FinalInspCamera', 'default', 1, -1, AcqHandle)</l>
+<l>open_framegrabber ('File', 1, 1, 0, 0, 0, 0, 'default', -1, 'default', -1, 'false', '/home/joao/Desktop/halcon-vision/halcon_vision/hdevelop/FinalInspCamera', 'default', 1, -1, AcqHandle)</l>
 <l>return ()</l>
 </body>
 <docu id="OpenCamera">
@@ -280,7 +280,7 @@
 <l>endif</l>
 <c></c>
 <l>dump_window_image(OutputImage, WindowHandle)</l>
-<l>write_image(OutputImage, 'jpg', 0, '/home/joao/Desktop/halcon_pulleys/hdevelop/FinalInspCamera/output/output_image')</l>
+<l>write_image(OutputImage, 'jpg', 0, '/home/joao/Desktop/halcon-vision/halcon_vision/hdevelop/FinalInspCamera/output/output_image')</l>
 <c></c>
 <l>return ()</l>
 </body>

@@ -11,10 +11,10 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-PULLEY_CAMERA_PROGRAM_PATH = '/home/joao/Desktop/halcon_pulleys/hdevelop/PulleyCamera/inspect_pulleys.hdev'
-PULLEY_CAMERA_OUTPUT_PATH = '/home/joao/Desktop/halcon_pulleys/hdevelop/PulleyCamera/output/output_image'
-FINAL_INSPECTION_CAMERA_PROGRAM_PATH = '/home/joao/Desktop/halcon_pulleys/hdevelop/FinalInspCamera/fic_hdev.hdev'
-FINAL_INSPECTION_CAMERA_OUTPUT_PATH = '/home/joao/Desktop/halcon_pulleys/hdevelop/FinalInspCamera/output/output_image'
+PULLEY_CAMERA_PROGRAM_PATH = '/home/joao/Desktop/halcon-vision/halcon_vision/hdevelop/PulleyCamera/inspect_pulleys.hdev'
+PULLEY_CAMERA_OUTPUT_PATH = '/home/joao/Desktop/halcon-vision/halcon_vision/hdevelop/PulleyCamera/output/output_image'
+FINAL_INSPECTION_CAMERA_PROGRAM_PATH = '/home/joao/Desktop/halcon-vision/halcon_vision/hdevelop/FinalInspCamera/fic_hdev.hdev'
+FINAL_INSPECTION_CAMERA_OUTPUT_PATH = '/home/joao/Desktop/halcon-vision/halcon_vision/hdevelop/FinalInspCamera/output/output_image'
 
 async def async_main():
 
