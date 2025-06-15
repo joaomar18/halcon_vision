@@ -48,3 +48,45 @@ class VisionCommunication:
         """Returns the vision outputs."""
 
         return self._outputs
+
+    def get_inputs_coil_size(self) -> int:
+
+        num_bits = len(self._inputs.control)
+        num_words = 0
+        if num_bits <= 16:
+            num_words = 1
+        else:
+            num_words = (num_bits + 15) // 16
+
+        return num_words * 16
+
+    def get_inputs_holdreg_size(self) -> int:
+
+        # Get number of program words
+        num_words_program = 1
+
+        # Get number of input register words
+        register_size = len(self._inputs.inputs_register)
+
+        return num_words_program + register_size
+
+    def get_outputs_coil_size(self) -> int:
+
+        num_bits = len(self._outputs.status)
+        num_words = 0
+        if num_bits <= 16:
+            num_words = 1
+        else:
+            num_words = (num_bits + 15) // 16
+
+        return num_words * 16
+
+    def get_outputs_holdreg_size(self) -> int:
+
+        # Get number of program acknowledge bytes
+        num_words_program_ack = 1
+
+        # Get number of output register bytes
+        register_size = len(self._outputs.outputs_register)
+
+        return num_words_program_ack + register_size

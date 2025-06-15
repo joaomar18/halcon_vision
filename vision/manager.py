@@ -35,7 +35,7 @@ class VisionManager:
             self.vision_systems: dict[str, VisionSystem] = {}
             self.vision_systems_name: set[str] = set()
 
-            asyncio.create_task(self._process_receiver_queue())
+            asyncio.create_task(self.process_receiver_queue())
         except Exception as e:
             logger.error(f"Vision Manager - Error initializing", e)
 
@@ -105,7 +105,7 @@ class VisionManager:
 
         return list(self.vision_systems.keys())
 
-    async def _process_receiver_queue(self):
+    async def process_receiver_queue(self):
         """
         Continuously process messages from the receiver queue.
         """

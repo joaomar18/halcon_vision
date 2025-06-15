@@ -9,6 +9,7 @@ import asyncio
 from vision.system import VisionSystem
 from vision.manager import VisionManager
 from communication.websockets import WebSocketServer
+from communication.modbus_tcp import ModbusTCPServer
 import communication.queues as queues
 from db.client import DBClient
 import vision.construct
@@ -86,9 +87,12 @@ async def async_main():
         )
     )
 
+    # Initialize Modbus TCP Server for device Communication
+    # modbus_tcp_server = ModbusTCPServer(host="0.0.0.0", port=502, vision_manager=vision_manager)
+
     # Start the WebSocket server and keep the application running
     await asyncio.gather(
-        websockets_server.start_server(),
+        websockets_server.start_server(),  # modbus_tcp_server.start_server()
     )
 
 
