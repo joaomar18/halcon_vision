@@ -48,9 +48,9 @@ class VisionOutputs:
             HalconVariable() for _ in range(register_size)
         )
 
-        self.update_outputs_queue: asyncio.Queue = None
+        self.update_outputs_queues: list[asyncio.Queue] = []
 
-    def set_update_outputs_queue(self, queue: asyncio.Queue) -> None:
+    def set_update_outputs_queues(self, queues: list[asyncio.Queue]) -> None:
         """
         Sets the queue for sending update messages asynchronously.
 
@@ -61,9 +61,10 @@ class VisionOutputs:
             ValueError: If the provided queue is not valid.
         """
 
-        if not isinstance(queue, asyncio.Queue):
-            raise ValueError("queue must be a valid asyncio.Queue")
-        self.update_outputs_queue = queue
+        for queue in queues:
+            if not isinstance(queue, asyncio.Queue):
+                raise ValueError("queue must be a valid asyncio.Queue")
+            self.update_outputs_queues.append(queue)
 
     async def send_status(self) -> None:
         """Sends the current status to the queue."""
@@ -126,8 +127,8 @@ class VisionOutputs:
 
         logger = LoggerManager.get_logger(__name__)
 
-        if self.update_outputs_queue is None:
-            raise RuntimeError("Update outputs queue is not set.")
+        if len(self.update_outputs_queues) == 0:
+            raise RuntimeError("Update outputs queues are not set.")
 
         message = {
             PERIPHERAL_KEY: self.device_name,
@@ -135,5 +136,6 @@ class VisionOutputs:
             SECTION_KEY: section,
             VALUE_KEY: value,
         }
-        logger.debug(f"Sent message from {self.device_name}: {message}")
-        await self.update_outputs_queue.put(message)
+
+        for queue in self.update_outputs_queues:
+            await queue.put(message)

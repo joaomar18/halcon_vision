@@ -57,8 +57,8 @@ async def async_main():
 
     # Initialize vision manager to coordinate multiple camera systems
     vision_manager = VisionManager(
-        receiver_queue=queues.frontend_receive_queue,
-        send_queue=queues.frontend_send_queue,
+        receiver_queues=queues.receive_queues,
+        send_queues=queues.send_queues,
     )
 
     # Add Pulley Camera vision system for pulley picking operations
@@ -88,7 +88,13 @@ async def async_main():
     )
 
     # Initialize Modbus TCP Server for device Communication
-    # modbus_tcp_server = ModbusTCPServer(host="0.0.0.0", port=502, vision_manager=vision_manager)
+    modbus_tcp_server = ModbusTCPServer(
+        host="0.0.0.0",
+        port=502,
+        receive_queue=queues.modbus_tcp_receive_queue,
+        send_queue=queues.modbus_tcp_send_queue,
+        vision_manager=vision_manager,
+    )
 
     # Start the WebSocket server and keep the application running
     await asyncio.gather(

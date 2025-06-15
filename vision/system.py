@@ -113,7 +113,7 @@ class VisionSystem:
         except Exception as e:
             logger.error(f"{self.name}- Error processing incoming message", e)
 
-    def set_update_queue(self, queue: asyncio.Queue) -> None:
+    def set_update_queues(self, queues: list[asyncio.Queue]) -> None:
         """
         Set the queue for updating input and output communication.
 
@@ -124,8 +124,8 @@ class VisionSystem:
         logger = LoggerManager.get_logger(__name__)
 
         try:
-            self.communication.inputs.set_update_inputs_queue(queue)
-            self.communication.outputs.set_update_outputs_queue(queue)
+            self.communication.inputs.set_update_inputs_queues(queues)
+            self.communication.outputs.set_update_outputs_queues(queues)
 
         except Exception as e:
             logger.error(f"{self.name}- Error setting update queue", e)

@@ -38,9 +38,9 @@ class VisionInputs:
         self.inputs_register: list[HalconVariable] = list(
             HalconVariable() for _ in range(register_size)
         )
-        self.update_inputs_queue: asyncio.Queue = None
+        self.update_inputs_queues: list[asyncio.Queue] = []
 
-    def set_update_inputs_queue(self, queue: asyncio.Queue) -> None:
+    def set_update_inputs_queues(self, queues: list[asyncio.Queue]) -> None:
         """
         Sets the queue for sending update messages asynchronously.
 
@@ -51,9 +51,10 @@ class VisionInputs:
             ValueError: If the provided queue is None.
         """
 
-        if not isinstance(queue, asyncio.Queue):
-            raise ValueError("queue must be a valid asyncio.Queue")
-        self.update_inputs_queue = queue
+        for queue in queues:
+            if not isinstance(queue, asyncio.Queue):
+                raise ValueError("queue must be a valid asyncio.Queue")
+            self.update_inputs_queues.append(queue)
 
     async def send_control(self) -> None:
         """Sends the current control status to the queue."""
@@ -104,8 +105,8 @@ class VisionInputs:
             RuntimeError: If the update outputs queue is not set.
         """
 
-        if self.update_inputs_queue is None:
-            raise RuntimeError("Update inputs queue is not set.")
+        if len(self.update_inputs_queues) == 0:
+            raise RuntimeError("Update inputs queues are not set.")
 
         message = {
             PERIPHERAL_KEY: self.device_name,
@@ -114,4 +115,5 @@ class VisionInputs:
             VALUE_KEY: value,
         }
 
-        await self.update_inputs_queue.put(message)
+        for queue in self.update_inputs_queues:
+            await queue.put(message)

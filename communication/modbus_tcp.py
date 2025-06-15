@@ -64,9 +64,18 @@ class ModbusTCPServer:
         running (bool): Flag indicating if server is running
     """
 
-    def __init__(self, host: str, port: int, vision_manager: VisionManager):
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        receive_queue: asyncio.Queue,
+        send_queue: asyncio.Queue,
+        vision_manager: VisionManager,
+    ):
         self.host = host
         self.port = port
+        self.receive_queue = receive_queue
+        self.send_queue = send_queue
         self.vision_manager = vision_manager
         self.server = None
         self.running = False

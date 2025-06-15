@@ -25,19 +25,32 @@ class VisionManager:
         vision_systems_name (Set[str]): A set of vision system names.
     """
 
-    def __init__(self, receiver_queue: asyncio.Queue, send_queue: asyncio.Queue):
+    def __init__(
+        self, receiver_queues: list[asyncio.Queue], send_queues: list[asyncio.Queue]
+    ):
 
         logger = LoggerManager.get_logger(__name__)
 
         try:
-            self.receiver_queue = receiver_queue
-            self.send_queue = send_queue
+            self.receiver_queues = receiver_queues
+            self.send_queues = send_queues
             self.vision_systems: dict[str, VisionSystem] = {}
             self.vision_systems_name: set[str] = set()
 
-            asyncio.create_task(self.process_receiver_queue())
+            # Store queue processing tasks
+            self.queue_tasks: list[asyncio.Task] = []
+
+            # Initiate Receiver Queues Tasks
+            self.init_queue_tasks()
+
         except Exception as e:
             logger.error(f"Vision Manager - Error initializing", e)
+
+    def init_queue_tasks(self):
+
+        for queue in self.receiver_queues:
+            task = asyncio.create_task(self.process_receiver_queue(queue))
+            self.queue_tasks.append(task)
 
     async def add_vision_system(self, new_vision_system: VisionSystem):
         """
@@ -57,7 +70,7 @@ class VisionManager:
 
         try:
             self.vision_systems[new_vision_system.name] = new_vision_system
-            new_vision_system.set_update_queue(self.send_queue)
+            new_vision_system.set_update_queues(self.send_queues)
             self.vision_systems_name.add(new_vision_system.name)
 
             await new_vision_system.init()
@@ -105,7 +118,7 @@ class VisionManager:
 
         return list(self.vision_systems.keys())
 
-    async def process_receiver_queue(self):
+    async def process_receiver_queue(self, queue: asyncio.Queue):
         """
         Continuously process messages from the receiver queue.
         """
@@ -114,7 +127,7 @@ class VisionManager:
 
         while True:
             try:
-                message = await self.receiver_queue.get()
+                message = await queue.get()
                 await self.process_received_message(message)
             except Exception as e:
                 logger.error(f"Vision Manager - Error processing received message: {e}")
@@ -170,7 +183,9 @@ class VisionManager:
                     TYPE_KEY: "response",
                     DATA_KEY: self.get_vision_system_devices(),
                 }
-                await self.send_queue.put(response)
+                
+                # Response message to frontend
+                await self.send_queues[0].put(response)
 
                 for vision_system in self.vision_systems.values():
                     await vision_system.process_incoming_messages(message)
