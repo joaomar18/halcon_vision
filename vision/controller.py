@@ -142,8 +142,6 @@ class VisionController:
                     self.update_status(run=False, trigger_error=True)
                     await self.outputs.send_status()
 
-        self.camera_trigger = False
-
     async def camera_program_change(self) -> None:
         """
         Change the camera program.
@@ -162,7 +160,7 @@ class VisionController:
                 else:
                     self.update_status(run=False, program_change_error=True)
                     await self.outputs.send_program_number_acknowledge()
-                    
+
                 await self.outputs.send_status()
 
     def process_camera_outputs(self) -> None:

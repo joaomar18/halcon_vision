@@ -205,9 +205,12 @@ class VisionSystem:
     async def handle_control_section(self, message: dict) -> None:
         """
         Handle control section updates from the request message.
+        Supports both individual control updates and batch updates for multiple controls.
 
         Args:
             message (dict): The control section message, containing the control data and value to update.
+                For single updates: Contains DATA_KEY and VALUE_KEY
+                For batch updates: Contains BATCH_KEY and BATCH_VALUES_KEY with multiple control values
 
         Raises:
             ValueError: If the control data or value is invalid.
@@ -216,24 +219,52 @@ class VisionSystem:
         logger = LoggerManager.get_logger(__name__)
 
         try:
-            value_key = message.get(VALUE_KEY)
-            data_key = message.get(DATA_KEY)
 
-            if not data_key in self.communication.inputs.control:
-                raise ValueError(f"Invalid data key in control section: {data_key}")
+            batch_update = message.get(BATCH_KEY)
 
-            value = self.convert_string_to_bool(value_key)
-            self.communication.inputs.control[data_key] = value
+            if batch_update:
+
+                values_keys: dict = message.get(BATCH_VALUES_KEY)
+                if not values_keys:
+                    raise ValueError(
+                        f"Didn't received any values to update from batch request"
+                    )
+
+                for control_key, control_value in values_keys.items():
+                    if control_key not in self.communication.inputs.control:
+                        logger.warning(
+                            f"Invalid control key in batch update: {control_key}"
+                        )
+                        continue
+
+                    if isinstance(control_value, str):
+                        value = self.convert_string_to_bool(control_value)
+                    else:
+                        value = bool(control_value)
+
+                    self.communication.inputs.control[control_key] = value
+
+            else:
+
+                value_key = message.get(VALUE_KEY)
+                data_key = message.get(DATA_KEY)
+
+                if not data_key in self.communication.inputs.control:
+                    raise ValueError(f"Invalid data key in control section: {data_key}")
+
+                if isinstance(value_key, str):
+                    value = self.convert_string_to_bool(value_key)
+                else:
+                    value = bool(value_key)
+
+                self.communication.inputs.control[data_key] = value
 
             if self.communication.inputs.control[TRIGGER]:
                 await self.controller.camera_single_trigger()
-                self.communication.inputs.control[TRIGGER] = False
             elif self.communication.inputs.control[PROGRAM_CHANGE]:
                 await self.controller.camera_program_change()
-                self.communication.inputs.control[PROGRAM_CHANGE] = False
             elif self.communication.inputs.control[RESET]:
                 await self.controller.camera_set_ready()
-                self.communication.inputs.control[RESET] = False
             else:
                 await self.handle_ready_state()
 
@@ -266,9 +297,12 @@ class VisionSystem:
     async def handle_inputs_section(self, message: dict) -> None:
         """
         Handle input section updates from the request message.
+        Supports both individual register updates and batch updates for multiple registers.
 
         Args:
             message (dict): The inputs section message, containing the data for input update.
+                For single updates: Contains VALUE_KEY, VALUE_TYPE_KEY, VALUE_INDEX_KEY
+                For batch updates: Contains BATCH_KEY and BATCH_VALUES_KEY with multiple register values
 
         Raises:
             ValueError: If the input index or value is invalid.
@@ -279,22 +313,81 @@ class VisionSystem:
 
         try:
 
-            value_key = message.get(VALUE_KEY)
-            value_type_key = message.get(VALUE_TYPE_KEY)
-            value_index_key = message.get(VALUE_INDEX_KEY)
+            batch_update = message.get(BATCH_KEY)
 
-            if value_key is None or value_type_key is None or value_index_key is None:
-                raise KeyError(f"Missing key in inputs section message: {message}")
+            if batch_update:
+                values_keys: dict = message.get(BATCH_VALUES_KEY)
 
-            index = int(value_index_key)
+                if not values_keys:
+                    raise ValueError(
+                        f"Didn't received any values to update from batch request"
+                    )
 
-            if index < 0 or index >= len(self.communication.inputs.inputs_register):
-                raise ValueError(f"Invalid index in inputs section message: {index}")
+                for index, value_info in values_keys.items():
+                    try:
+                        index = int(index)
 
-            value = self.convert_value_based_on_type(value_key, value_type_key)
+                        if index < 0 or index >= len(
+                            self.communication.inputs.inputs_register
+                        ):
+                            logger.warning(
+                                f"Invalid index in batch inputs update: {index}"
+                            )
+                            continue
 
-            self.communication.inputs.inputs_register[index].set_value(value)
-            self.controller.set_camera_input(index, value)
+                        if isinstance(value_info, dict):
+                            value_str = value_info.get("value")
+                            value_type = value_info.get(
+                                "type", "int"
+                            )  # Default to int if type not specified
+                        else:
+                            # If only value is provided, assume int type
+                            value_str = str(value_info)
+                            value_type = "int"
+
+                        value = self.convert_value_based_on_type(value_str, value_type)
+
+                        # Update register and camera
+                        self.communication.inputs.inputs_register[index].set_value(
+                            value
+                        )
+                        self.controller.set_camera_input(index, value)
+
+                    except (ValueError, TypeError) as e:
+                        logger.warning(f"Error processing input at index {index}: {e}")
+
+                logger.debug(
+                    f"Updated multiple input registers in batch: {len(values_keys)} registers"
+                )
+
+            else:
+
+                value_key = message.get(VALUE_KEY)
+                value_type_key = message.get(VALUE_TYPE_KEY)
+                value_index_key = message.get(VALUE_INDEX_KEY)
+
+                if (
+                    value_key is None
+                    or value_type_key is None
+                    or value_index_key is None
+                ):
+                    raise KeyError(f"Missing key in inputs section message: {message}")
+
+                index = int(value_index_key)
+
+                if index < 0 or index >= len(self.communication.inputs.inputs_register):
+                    raise ValueError(
+                        f"Invalid index in inputs section message: {index}"
+                    )
+
+                value = self.convert_value_based_on_type(value_key, value_type_key)
+
+                self.communication.inputs.inputs_register[index].set_value(value)
+                self.controller.set_camera_input(index, value)
+
+                logger.debug(
+                    f"Updated single input register: index={index}, value={value}"
+                )
 
         except KeyError as e:
             logger.error(f"{self.name}- Key Error when processing inputs section", e)
@@ -317,7 +410,7 @@ class VisionSystem:
             ValueError: If the value is not 'true' or 'false'.
         """
 
-        if value != "true" and value != "false":
+        if value.lower() != "true" and value.lower() != "false":
             raise ValueError(f"Invalid boolean value: {value}")
 
         return value == "true"
