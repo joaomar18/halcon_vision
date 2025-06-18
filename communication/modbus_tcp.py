@@ -302,16 +302,10 @@ class ModbusTCPServer:
             current_coil = functions.round_to_nearest_10(current_coil)
             current_reg = functions.round_to_nearest_10(current_reg)
 
-        server_coils = ModbusSequentialDataBlock(1, [0] * current_coil)
-        server_hregs = ModbusSequentialDataBlock(1, [0] * current_reg)
-
         store = ModbusSlaveContext(
-            co=server_coils,
-            hr=server_hregs,
+            co=ModbusSequentialDataBlock(1, [0] * current_coil),
+            hr=ModbusSequentialDataBlock(1, [0] * current_reg),
         )
-
-        logger.debug(f"Length of coils: {len(self.coils)}, {current_coil}")
-        logger.debug(f"Length of registers: {len(self.registers)}, {current_reg}")
 
         return store
 
@@ -334,7 +328,6 @@ class ModbusTCPServer:
             self.running = True
 
             self.update_task = asyncio.create_task(self.process_update_requests())
-            self.receive_task = asyncio.create_task(self.process_receive_requests())
 
             self.server = await StartAsyncTcpServer(
                 context=self.context, address=(self.host, self.port)
@@ -364,7 +357,6 @@ class ModbusTCPServer:
 
         logger = LoggerManager.get_logger(__name__)
 
-        logger.info("Starting Modbus Update Process")
         while self.running:
             try:
                 message: dict[str, Any] = await self.send_queue.get()
@@ -379,66 +371,6 @@ class ModbusTCPServer:
                 )
             except Exception as e:
                 logger.error(f"WebSocket Server - Error processing update request", e)
-
-    async def process_receive_requests(self) -> None:
-        """
-        Monitor Modbus registers for changes made by clients.
-
-        This method periodically checks the values of input registers and coils
-        to detect changes made by external Modbus clients, then processes those changes.
-        """
-
-        logger = LoggerManager.get_logger(__name__)
-
-        previous_coil_values = {}
-        previous_register_values = {}
-
-        while self.running:
-            try:
-                slave_context: ModbusSlaveContext = self.context[0]
-
-                # Check registers configured as inputs (from client to server)
-                for reg in [
-                    reg
-                    for reg in self.registers
-                    if reg.register_direction == VariableDirection.INPUT
-                ]:
-                    key = f"{reg.device_name}_{reg.register_section}_{reg.register_adress}"
-                    current_value = slave_context.getValues(3, reg.register_adress, 1)[
-                        0
-                    ]
-
-                    if (
-                        key not in previous_register_values
-                        or previous_register_values[key] != current_value
-                    ):
-                        logger.debug(
-                            f"Register change detected at address {reg.register_adress}: {current_value}"
-                        )
-                        previous_register_values[key] = current_value
-
-                for coil in [
-                    coil
-                    for coil in self.coils
-                    if coil.coil_direction == VariableDirection.INPUT
-                ]:
-                    key = f"{coil.device_name}_{coil.coil_section}_{coil.coil_address}"
-
-                    current_value = slave_context.getValues(1, coil.coil_address, 1)[0]
-
-                    if (
-                        key not in previous_coil_values
-                        or previous_coil_values[key] != current_value
-                    ):
-                        logger.info(
-                            f"Coil change detected at address {coil.coil_address}: {current_value}"
-                        )
-                        previous_coil_values[key] = current_value
-                await asyncio.sleep(0.05)  # Polling frequency
-
-            except Exception as e:
-                logger.error(f"Error polling for modbus inputs changes: {e}")
-                await asyncio.sleep(1)
 
     async def update_coils(
         self, peripheral: str, section: str, input_value: Any
@@ -519,7 +451,8 @@ class ModbusTCPServer:
                     and reg.register_section == PROGRAM_NUMBER_ACKNOWLEDGE_SECTION
                 )
                 if matching_register:
-                    self.context[0].setValues(
+                    slave_context: ModbusSlaveContext = self.context[0]
+                    slave_context.setValues(
                         3, matching_register.register_adress, [input_value]
                     )
 
@@ -581,7 +514,7 @@ class ModbusTCPServer:
                 else:
                     if len(matching_registers) != len(input_value):
                         raise ValueError(
-                            f"The length of the matching registers {len(matching_registers)} is not equal to the length of the values {len(msg_value)}"
+                            f"The length of the matching registers {len(matching_registers)} is not equal to the length of the values {len(input_value)}"
                         )
 
         except Exception as e:
@@ -712,15 +645,6 @@ class ModbusTCPServer:
                 self.update_task = None
             except Exception as e:
                 logger.error(f"Error canceling update process: {e}")
-                return False
-
-        if self.receive_task:
-            try:
-                self.receive_task.cancel()
-                await asyncio.gather(self.receive_task, return_exceptions=True)
-                self.receive_task = None
-            except Exception as e:
-                logger.error(f"Error canceling receive process: {e}")
                 return False
 
         if self.server is not None:
