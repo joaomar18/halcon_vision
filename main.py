@@ -98,7 +98,7 @@ async def async_main():
 
     # Start the WebSocket server and keep the application running
     await asyncio.gather(
-        websockets_server.start_server(), modbus_tcp_server.start_server()  # modbus_tcp_server.start_server()
+        websockets_server.start_server(), modbus_tcp_server.start_server()
     )
 
 

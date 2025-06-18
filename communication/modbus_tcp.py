@@ -1,12 +1,13 @@
 ###########EXTERNAL IMPORTS############
 
 import asyncio
-from pymodbus.server import StartAsyncTcpServer
+from pymodbus.server import StartAsyncTcpServer, ServerAsyncStop
 from pymodbus.datastore import ModbusSequentialDataBlock
 from pymodbus.datastore import ModbusSlaveContext, ModbusServerContext
+from pymodbus.datastore.store import BaseModbusDataBlock
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Tuple, Optional, Any
 import logging
 
 #######################################
@@ -14,55 +15,73 @@ import logging
 #############LOCAL IMPORTS#############
 
 from util.debug import LoggerManager
+import util.functions as functions
 from vision.manager import VisionManager, VisionSystem
-from vision.controller import VisionController
-from vision.data.comm import VisionCommunication, VisionInputs, VisionOutputs
+from vision.data.variables import *
 
 #######################################
 
 LoggerManager.get_logger(__name__).setLevel(logging.DEBUG)
 
 
-class RegisterType(Enum):
-    """Type of register in the modbus mapping"""
+class VariableDirection(Enum):
+    """Direction of the variable in the modbus mapping"""
 
     INPUT = "input"
     OUTPUT = "output"
 
 
 @dataclass
-class ModbusAddressMapping:
+class ModbusRegister:
     """
-    Maps a device's registers to specific addresses in the Modbus server
+    Represents a Modbus register with metadata for device identification and addressing.
+
+    This dataclass encapsulates all necessary information to identify and interact with
+    a Modbus register in the system. It includes information about which device the
+    register belongs to, its section/purpose, address, data flow direction, and an
+    optional descriptive name.
 
     Attributes:
-        device_name: Name of the vision system device
-        register_type: Whether this maps to inputs or outputs
-        first_coil_address: Starting address for coils (bit values)
-        coil_count: Number of coils allocated
-        first_register_address: Starting address for holding registers (word values)
-        register_count: Number of registers allocated
+        device_name (str): Name of the device/peripheral this register belongs to.
+        register_section (str): Section or category of the register (e.g., "outputs", "inputs").
+        register_adress (int): The Modbus address of this register within the server context.
+        register_direction (VariableDirection): Indicates if this is an input or output register.
+        register_name (Optional[str]): Optional human-readable name for the register.
     """
 
     device_name: str
-    register_type: RegisterType
-    first_coil_address: int
-    coil_count: int
-    first_register_address: int
-    register_count: int
+    register_section: str
+    register_adress: int
+    register_direction: VariableDirection
+    register_name: Optional[str] = None
+
+
+@dataclass
+class ModbusCoil:
+    """
+    Represents a Modbus coil with metadata for device identification and addressing.
+
+    This dataclass encapsulates all necessary information to identify and interact with
+    a Modbus coil in the system. It includes information about which device the
+    coil belongs to, its section/purpose, address, data flow direction, and an
+    optional descriptive name.
+
+    Attributes:
+        device_name (str): Name of the device/peripheral this coil belongs to.
+        coil_section (str): Section or category of the coil (e.g., "status", "control").
+        coil_address (int): The Modbus address of this coil within the server context.
+        coil_direction (VariableDirection): Indicates if this is an input or output coil.
+        coil_name (Optional[str]): Optional human-readable name for the coil.
+    """
+
+    device_name: str
+    coil_section: str
+    coil_address: int
+    coil_direction: VariableDirection
+    coil_name: Optional[str] = None
 
 
 class ModbusTCPServer:
-    """
-    ModbusTCPServer manages a Modbus TCP server with configurable data blocks for coils,
-    discrete inputs, holding registers and input registers.
-
-    Attributes:
-        host (str): The host address for the Modbus TCP server
-        port (int): The port for the Modbus TCP server
-        context (ModbusServerContext): The Modbus server context containing all data blocks
-        running (bool): Flag indicating if server is running
-    """
 
     def __init__(
         self,
@@ -80,99 +99,232 @@ class ModbusTCPServer:
         self.server = None
         self.running = False
 
-        # Initialize mappings for device address spaces
-        self.address_mappings: List[ModbusAddressMapping] = []
+        self.coils: List[ModbusCoil] = []
+        self.registers: List[ModbusRegister] = []
 
         # Initialize data blocks
         self.context = ModbusServerContext(slaves=self.init_context(), single=True)
 
-    def init_context(self) -> ModbusSlaveContext:
+    def init_inputs(
+        self,
+        vision_system: VisionSystem,
+        initial_coil_addr: int,
+        initial_register_addr: int,
+    ) -> Tuple[int, int]:
         """
-        Initialize the Modbus server context with address mappings for all vision systems.
+        Initialize Modbus input coils and registers for a vision system.
 
-        This method:
-        1. Iterates through all vision systems to calculate address space requirements
-        2. Creates mappings for both INPUT and OUTPUT registers/coils for each device
-        3. Pads address spaces to ensure each device ends on an address that is a multiple of 10
-        4. Adds a buffer of 10 additional addresses at the end
-        5. Creates and returns a ModbusSlaveContext with the calculated address spaces
+        This method maps a vision system's input control flags to Modbus coils and
+        maps the program number acknowledgment and input registers to Modbus holding registers.
+        It automatically assigns sequential addresses starting from the provided
+        initial addresses.
 
-        The addressing approach ensures:
-        - Each vision system's inputs and outputs are clearly separated
-        - Addresses end on multiples of 10 for easier identification and expansion
-        - Adequate space is allocated for all required coils and registers
+        Args:
+            vision_system (VisionSystem): The vision system to initialize inputs for.
+            initial_coil_addr (int): The starting Modbus address for input coils.
+            initial_register_addr (int): The starting Modbus address for input registers.
 
         Returns:
-            ModbusSlaveContext: The initialized Modbus slave context with all data blocks
+            Tuple[int, int]: A tuple containing the next available coil address and
+                            the next available register address after initialization.
+                            These values can be used for initializing the next vision system.
+
+        Note:
+            This method populates the self.coils and self.registers lists with
+            ModbusCoil and ModbusRegister objects with VariableDirection.INPUT direction.
+        """
+
+        current_coil = initial_coil_addr
+        current_register = initial_register_addr
+
+        # Control coils
+        for key in vision_system.communication.get_inputs_control_dict().keys():
+
+            self.coils.append(
+                ModbusCoil(
+                    device_name=vision_system.name,
+                    coil_section=CONTROL_SECTION,
+                    coil_name=key,
+                    coil_address=current_coil,
+                    coil_direction=VariableDirection.INPUT,
+                )
+            )
+
+            # Increment current coil
+            current_coil += 1
+
+        # Program number acknowledge
+        self.registers.append(
+            ModbusRegister(
+                device_name=vision_system.name,
+                register_section=PROGRAM_NUMBER_SECTION,
+                register_adress=current_register,
+                register_direction=VariableDirection.INPUT,
+            )
+        )
+
+        # Increment current register
+        current_register += 1
+
+        # Input Registers
+        for i in range(0, len(vision_system.communication.get_inputs_registers_list())):
+
+            self.registers.append(
+                ModbusRegister(
+                    device_name=vision_system.name,
+                    register_section=INPUTS_SECTION,
+                    register_adress=(current_register),
+                    register_direction=VariableDirection.INPUT,
+                )
+            )
+
+            # Increment current register
+            current_register += 1
+
+        return (current_coil, current_register)
+
+    def init_outputs(
+        self,
+        vision_system: VisionSystem,
+        initial_coil_addr: int,
+        initial_register_addr: int,
+    ) -> Tuple[int, int]:
+        """
+        Initialize Modbus output coils and registers for a vision system.
+
+        This method maps a vision system's output status flags to Modbus coils and
+        maps the program number and output registers to Modbus holding registers.
+        It automatically assigns sequential addresses starting from the provided
+        initial addresses.
+
+        Args:
+            vision_system (VisionSystem): The vision system to initialize outputs for.
+            initial_coil_addr (int): The starting Modbus address for output coils.
+            initial_register_addr (int): The starting Modbus address for output registers.
+
+        Returns:
+            Tuple[int, int]: A tuple containing the next available coil address and
+                            the next available register address after initialization.
+                            These values can be used for initializing the next vision system.
+
+        Note:
+            This method populates the self.coils and self.registers lists with
+            ModbusCoil and ModbusRegister objects respectively.
+        """
+
+        current_coil = initial_coil_addr
+        current_register = initial_register_addr
+
+        # Control coils
+        for key in vision_system.communication.get_outputs_status_dict().keys():
+
+            self.coils.append(
+                ModbusCoil(
+                    device_name=vision_system.name,
+                    coil_section=STATUS_SECTION,
+                    coil_name=key,
+                    coil_address=current_coil,
+                    coil_direction=VariableDirection.OUTPUT,
+                )
+            )
+
+            # Increment current coil
+            current_coil += 1
+
+        # Program number
+        self.registers.append(
+            ModbusRegister(
+                device_name=vision_system.name,
+                register_section=PROGRAM_NUMBER_ACKNOWLEDGE_SECTION,
+                register_adress=current_register,
+                register_direction=VariableDirection.OUTPUT,
+            )
+        )
+
+        # Increment current register
+        current_register += 1
+
+        # Output Registers
+        for i in range(0, len(vision_system.communication.get_outputs_register_list())):
+
+            self.registers.append(
+                ModbusRegister(
+                    device_name=vision_system.name,
+                    register_section=OUTPUTS_SECTION,
+                    register_adress=(current_register),
+                    register_direction=VariableDirection.OUTPUT,
+                )
+            )
+
+            # Increment current register
+            current_register += 1
+
+        return (current_coil, current_register)
+
+    def init_context(self) -> ModbusSlaveContext:
+        """
+        Initialize the Modbus slave context with coils and registers for all vision systems.
+
+        This method creates the Modbus data context by:
+        1. Iterating through all vision systems registered with the vision manager
+        2. Initializing input and output coils and registers for each system
+        3. Padding addresses to nice boundaries (multiples of 100) for readability
+        4. Creating a ModbusSlaveContext with appropriate data blocks
+
+        The initialized context includes all control coils, status coils, program numbers,
+        input registers, and output registers for all vision systems, with sufficient
+        address space allocated.
+
+        Returns:
+            ModbusSlaveContext: A fully initialized Modbus slave context that can be
+                            used with a Modbus server to handle register read/write operations.
+
+        Note:
+            This method depends on the init_inputs and init_outputs methods to populate
+            the coils and registers lists, and on the round_to_nearest_100 utility function
+            to ensure clean address boundaries between vision systems.
         """
 
         logger = LoggerManager.get_logger(__name__)
 
-        total_coils = 0
-        total_registers = 0
+        current_coil = 1
+        current_reg = 1
 
         for name, vision_system in self.vision_manager.vision_systems.items():
 
-            input_coils = vision_system.communication.get_inputs_coil_size()
-            input_registers = vision_system.communication.get_inputs_holdreg_size()
-
-            self.address_mappings.append(
-                ModbusAddressMapping(
-                    device_name=name,
-                    register_type=RegisterType.INPUT,
-                    first_coil_address=total_coils + 1,
-                    coil_count=input_coils,
-                    first_register_address=total_registers + 1,
-                    register_count=input_registers,
-                )
+            (current_coil, current_reg) = self.init_inputs(
+                vision_system, current_coil, current_reg
             )
-            logger.debug(
-                f"{name}, {RegisterType.INPUT}, {total_coils + 1}, {input_coils}, {total_registers + 1}. {input_registers}"
+            (current_coil, current_reg) = self.init_outputs(
+                vision_system, current_coil, current_reg
             )
 
-            total_coils += input_coils
-            total_registers += input_registers
+            current_coil = functions.round_to_nearest_10(current_coil)
+            current_reg = functions.round_to_nearest_10(current_reg)
 
-            output_coils = vision_system.communication.get_outputs_coil_size()
-            output_registers = vision_system.communication.get_outputs_holdreg_size()
-
-            self.address_mappings.append(
-                ModbusAddressMapping(
-                    device_name=name,
-                    register_type=RegisterType.OUTPUT,
-                    first_coil_address=total_coils + 1,
-                    coil_count=output_coils,
-                    first_register_address=total_registers + 1,
-                    register_count=output_registers,
-                )
-            )
-            logger.debug(
-                f"{name}, {RegisterType.OUTPUT}, {total_coils + 1}, {output_coils}, {total_registers + 1}. {output_registers}"
-            )
-
-            total_coils += output_coils
-            total_registers += output_registers
-
-            if total_coils % 10 != 0:
-                padding = 10 - (total_coils % 10)
-                total_coils += padding
-
-            if total_registers % 10 != 0:
-                padding = 10 - (total_registers % 10)
-                total_registers += padding
-
-        total_coils += 10
-        total_registers += 10
+        server_coils = ModbusSequentialDataBlock(1, [0] * current_coil)
+        server_hregs = ModbusSequentialDataBlock(1, [0] * current_reg)
 
         store = ModbusSlaveContext(
-            co=ModbusSequentialDataBlock(1, [0] * total_coils),
-            hr=ModbusSequentialDataBlock(1, [0] * total_registers),
+            co=server_coils,
+            hr=server_hregs,
         )
+
+        logger.debug(f"Length of coils: {len(self.coils)}, {current_coil}")
+        logger.debug(f"Length of registers: {len(self.registers)}, {current_reg}")
+
         return store
 
-    async def start_server(self) -> None:
+    async def start_server(self) -> bool:
         """
-        Start the Modbus TCP server and listen for incoming connections.
+        Start the Modbus TCP server and related background tasks.
+
+        This method initializes and starts the Modbus TCP server using PyModbus's
+        StartAsyncTcpServer function. It also creates and starts two background tasks:
+        one for processing update requests and another for processing receive requests.
+
+        Returns:
+            bool: True if the server was successfully started, False otherwise.
         """
 
         logger = LoggerManager.get_logger(__name__)
@@ -181,203 +333,402 @@ class ModbusTCPServer:
             logger.info(f"Modbus TCP Server - Starting on {self.host}:{self.port}")
             self.running = True
 
-            # Start polling task for synchronizing vision system data
-            self.update_task = asyncio.create_task(self.polling_loop())
+            self.update_task = asyncio.create_task(self.process_update_requests())
+            self.receive_task = asyncio.create_task(self.process_receive_requests())
 
             self.server = await StartAsyncTcpServer(
                 context=self.context, address=(self.host, self.port)
             )
+            return True
 
         except Exception as e:
             logger.error(f"Modbus TCP Server - Failed to start: {e}")
             self.running = False
+            return False
 
-    async def polling_loop(self) -> None:
+    async def process_update_requests(self) -> None:
         """
-        Continuously poll vision systems and update Modbus registers.
-        This keeps the Modbus server in sync with all vision systems.
-        """
+        Process incoming update requests from the queue and update the Modbus context.
 
-        logger = LoggerManager.get_logger(__name__)
+        This method continuously monitors the send_queue for messages to update the
+        Modbus server context. When a message is received, it concurrently processes
+        updates for coils, program number acknowledgments, and output registers.
 
-        try:
-            logger.info("Starting Modbus Update Process")
-            while self.running:
-                self.sync_all_vision_systems()
-                await asyncio.sleep(0.05)  # Poll every 50ms
+        The method runs as a background task as long as self.running is True,
+        and handles any exceptions that occur during message processing to ensure
+        the update loop continues running.
 
-        except Exception as e:
-            logger.error(f"Error in Modbus polling loop: {e}", exc_info=True)
-        finally:
-            logger.info("Modbus polling loop stopped")
-
-    def sync_all_vision_systems(self) -> None:
-        """
-        Synchronize all vision systems' state to Modbus registers.
+        Returns:
+            None
         """
 
         logger = LoggerManager.get_logger(__name__)
 
-        try:
-            for name, vision_system in self.vision_manager.vision_systems.items():
+        logger.info("Starting Modbus Update Process")
+        while self.running:
+            try:
+                message: dict[str, Any] = await self.send_queue.get()
+                peripheral: str = message.get(PERIPHERAL_KEY)
+                section: str = message.get(SECTION_KEY)
+                value: Any = message.get(VALUE_KEY)
 
-                input_mapping = next(
-                    (
-                        m
-                        for m in self.address_mappings
-                        if m.device_name == name
-                        and m.register_type == RegisterType.INPUT
-                    ),
-                    None,
+                asyncio.gather(
+                    self.update_coils(peripheral, section, value),
+                    self.update_program_number_ack(peripheral, section, value),
+                    self.update_outputs_registers(peripheral, section, value),
                 )
+            except Exception as e:
+                logger.error(f"WebSocket Server - Error processing update request", e)
 
-                output_mapping = next(
-                    (
-                        m
-                        for m in self.address_mappings
-                        if m.device_name == name
-                        and m.register_type == RegisterType.OUTPUT
-                    ),
-                    None,
-                )
+    async def process_receive_requests(self) -> None:
+        """
+        Monitor Modbus registers for changes made by clients.
 
-                if input_mapping:
-                    self.sync_inputs(vision_system, input_mapping)
+        This method periodically checks the values of input registers and coils
+        to detect changes made by external Modbus clients, then processes those changes.
+        """
 
-                if output_mapping:
-                    self.sync_outputs(vision_system, output_mapping)
+        logger = LoggerManager.get_logger(__name__)
 
-        except Exception as e:
-            logger.error(f"Error syncing vision systems: {e}")
+        previous_coil_values = {}
+        previous_register_values = {}
 
-    def sync_inputs(
-        self, vision_system: VisionSystem, mapping: ModbusAddressMapping
+        while self.running:
+            try:
+                slave_context: ModbusSlaveContext = self.context[0]
+
+                # Check registers configured as inputs (from client to server)
+                for reg in [
+                    reg
+                    for reg in self.registers
+                    if reg.register_direction == VariableDirection.INPUT
+                ]:
+                    key = f"{reg.device_name}_{reg.register_section}_{reg.register_adress}"
+                    current_value = slave_context.getValues(3, reg.register_adress, 1)[
+                        0
+                    ]
+
+                    if (
+                        key not in previous_register_values
+                        or previous_register_values[key] != current_value
+                    ):
+                        logger.debug(
+                            f"Register change detected at address {reg.register_adress}: {current_value}"
+                        )
+                        previous_register_values[key] = current_value
+
+                for coil in [
+                    coil
+                    for coil in self.coils
+                    if coil.coil_direction == VariableDirection.INPUT
+                ]:
+                    key = f"{coil.device_name}_{coil.coil_section}_{coil.coil_address}"
+
+                    current_value = slave_context.getValues(1, coil.coil_address, 1)[0]
+
+                    if (
+                        key not in previous_coil_values
+                        or previous_coil_values[key] != current_value
+                    ):
+                        logger.info(
+                            f"Coil change detected at address {coil.coil_address}: {current_value}"
+                        )
+                        previous_coil_values[key] = current_value
+                await asyncio.sleep(0.05)  # Polling frequency
+
+            except Exception as e:
+                logger.error(f"Error polling for modbus inputs changes: {e}")
+                await asyncio.sleep(1)
+
+    async def update_coils(
+        self, peripheral: str, section: str, input_value: Any
     ) -> None:
         """
-        Synchronize input data from a vision system to Modbus registers.
+        Update Modbus coils based on a message received from a vision system.
+
+        This method processes status messages and updates the corresponding status coils
+        in the Modbus server context. It specifically handles the STATUS_SECTION messages,
+        extracting boolean values from the input dictionary and writing them to the
+        appropriate coils in batch.
 
         Args:
-            vision_system: The vision system to sync from
-            mapping: The address mapping for this vision system
+            peripheral (str): The name of the peripheral/vision system
+            section (str): The section of the message (e.g., "status")
+            input_value (Any): The value to set, expected to be a dictionary for status coils
+
+        Returns:
+            None
         """
 
         logger = LoggerManager.get_logger(__name__)
 
         try:
-            # Get the controller from the vision system
-            controller: VisionController = vision_system.controller
+            if section in [STATUS_SECTION]:
+                matching_coils: List[ModbusCoil] = [
+                    coil
+                    for coil in self.coils
+                    if coil.device_name == peripheral and coil.coil_section == section
+                ]
 
-            control_bits = []
-            for key, value in controller.inputs.control.items():
-                control_bits.append(1 if value else 0)
+                if isinstance(input_value, Dict):
+                    matching_coils.sort(key=lambda c: c.coil_address)
 
-            # Pad to required size
-            while len(control_bits) < mapping.coil_count:
-                control_bits.append(0)
+                    values: List[bool] = []
 
-            self.context[0].setValues(
-                1, mapping.first_coil_address, control_bits[: mapping.coil_count]
-            )
+                    for key, value in input_value.items():
+                        coil = next(
+                            (c for c in matching_coils if c.coil_name == key), None
+                        )
+                        if coil:
+                            values.append(bool(value))
 
-            registers = [controller.inputs.program_number]
-
-            for reg in controller.inputs.inputs_register:
-                if hasattr(reg, "value") and reg.value is not None:
-                    if isinstance(reg.value, float):
-                        # Multiply floats by 100 and convert to int
-                        registers.append(int(reg.value * 100))
-                    elif isinstance(reg.value, int):
-                        registers.append(reg.value)
-                    else:
-                        registers.append(0)  # Default for non-numeric values
-                else:
-                    registers.append(0)
-
-            # Trim or pad to match register count
-            if len(registers) > mapping.register_count:
-                registers = registers[: mapping.register_count]
-            while len(registers) < mapping.register_count:
-                registers.append(0)
-
-            self.context[0].setValues(3, mapping.first_register_address, registers)
+                    await self.write_batch_coils(32, matching_coils, values)
 
         except Exception as e:
-            logger.error(f"Error syncing inputs for {vision_system.name}: {e}")
+            logger.error(f"Failed to update coils on the modbus server: {e}")
 
-    def sync_outputs(
-        self, vision_system: VisionSystem, mapping: ModbusAddressMapping
+    async def update_program_number_ack(
+        self, peripheral: str, section: str, input_value: Any
     ) -> None:
         """
-        Synchronize output data from a vision system to Modbus registers.
+        Update the program number acknowledgment register in the Modbus server.
+
+        This method processes program number acknowledgment messages and updates
+        the corresponding register in the Modbus server context. It specifically
+        handles PROGRAM_NUMBER_ACKNOWLEDGE_SECTION messages, setting the provided
+        value in the appropriate register.
 
         Args:
-            vision_system: The vision system to sync from
-            mapping: The address mapping for this vision system
+            peripheral (str): The name of the peripheral/vision system
+            section (str): The section of the message (e.g., "program_number_acknowledge")
+            input_value (Any): The value to set in the program number acknowledge register,
+                            expected to be an integer
+
+        Returns:
+            None
         """
 
         logger = LoggerManager.get_logger(__name__)
 
         try:
-            controller: VisionController = vision_system.controller
-            status_bits = []
-            for value in controller.outputs.status.values():
-                status_bits.append(1 if value else 0)
-
-            # Pad to required size
-            while len(status_bits) < mapping.coil_count:
-                status_bits.append(0)
-
-            # Update the coils in Modbus
-            self.context[0].setValues(
-                1, mapping.first_coil_address, status_bits[: mapping.coil_count]
-            )
-
-            # Sync output registers
-            registers = [controller.outputs.program_number_acknowledge]
-
-            # Add output register values
-            for reg in controller.outputs.outputs_register:
-                if hasattr(reg, "value") and reg.value is not None:
-                    if isinstance(reg.value, float):
-                        # Multiply floats by 100 and convert to int
-                        registers.append(int(reg.value * 100))
-                    elif isinstance(reg.value, int):
-                        registers.append(reg.value)
-                    else:
-                        registers.append(0)
-                else:
-                    registers.append(0)
-
-            # Trim or pad to match register count
-            if len(registers) > mapping.register_count:
-                registers = registers[: mapping.register_count]
-            while len(registers) < mapping.register_count:
-                registers.append(0)
-
-            # Update registers in Modbus
-            self.context[0].setValues(3, mapping.first_register_address, registers)
+            if section in [PROGRAM_NUMBER_ACKNOWLEDGE_SECTION]:
+                matching_register: ModbusRegister = next(
+                    reg
+                    for reg in self.registers
+                    if reg.device_name == peripheral
+                    and reg.register_section == PROGRAM_NUMBER_ACKNOWLEDGE_SECTION
+                )
+                if matching_register:
+                    self.context[0].setValues(
+                        3, matching_register.register_adress, [input_value]
+                    )
 
         except Exception as e:
-            logger.error(f"Error syncing outputs for {vision_system.name}: {e}")
+            logger.error(
+                f"Failed to update program number acknowledge on the modbus server: {e}"
+            )
 
-    async def stop_server(self) -> None:
+    async def update_outputs_registers(
+        self, peripheral: str, section: str, input_value: Any
+    ):
         """
-        Gracefully stop the Modbus TCP server.
+        Update output registers in the Modbus server based on vision system data.
+
+        This method processes output register messages and updates the corresponding
+        registers in the Modbus server context. It specifically handles OUTPUTS_SECTION
+        messages, converting values as needed (multiplying float values by 100) and
+        writing them in batch to the appropriate registers.
+
+        Args:
+            peripheral (str): The name of the peripheral/vision system
+            section (str): The section of the message (e.g., "outputs_register")
+            input_value (Any): The values to set, expected to be a list of numeric values
+                            that can be converted to integers or floats
+
+        Returns:
+            None
+        """
+
+        logger = LoggerManager.get_logger(__name__)
+
+        try:
+            if section in [OUTPUTS_SECTION]:
+                matching_registers = [
+                    reg
+                    for reg in self.registers
+                    if reg.device_name == peripheral
+                    and reg.register_section == OUTPUTS_SECTION
+                ]
+
+                if matching_registers and len(matching_registers) == len(input_value):
+                    matching_registers.sort(key=lambda r: r.register_adress)
+
+                    converted_values: List[int] = []
+
+                    for reg_value in input_value:
+                        current_value = 0
+                        if functions.is_float(reg_value):
+                            current_value = int(float(reg_value) * 100)
+                        else:
+                            current_value = int(reg_value)
+
+                        converted_values.append(current_value)
+
+                    await self.write_batch_hreg(
+                        32, matching_registers, converted_values
+                    )
+
+                else:
+                    if len(matching_registers) != len(input_value):
+                        raise ValueError(
+                            f"The length of the matching registers {len(matching_registers)} is not equal to the length of the values {len(msg_value)}"
+                        )
+
+        except Exception as e:
+            logger.error(
+                f"Failed to update outputs registers on the modbus server: {e}"
+            )
+
+    async def write_batch_coils(
+        self, batch_size: int, list: List[ModbusCoil], values: List[bool]
+    ) -> None:
+        """
+        Write boolean values to Modbus coils in batches.
+
+        This method writes a list of boolean values to Modbus coils, either in batches
+        (if the coils have contiguous addresses) or individually. It prevents writing to
+        coils configured as inputs by checking their direction before attempting to write.
+
+        Args:
+            batch_size (int): Maximum number of coils to update in a single operation
+            list (List[ModbusCoil]): The coils to update
+            values (List[bool]): The boolean values to write to the coils
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If any coil in the list has VariableDirection.INPUT
+        """
+
+        # Check if any coils have VariableDirection.INPUT
+        input_coils = [
+            coil for coil in list if coil.coil_direction == VariableDirection.INPUT
+        ]
+        if input_coils:
+            input_addresses = [coil.coil_address for coil in input_coils]
+            raise ValueError(
+                error_msg=f"Cannot write to INPUT coils at addresses: {input_addresses}"
+            )
+
+        # Check if registers are contiguous
+        if all(
+            list[i].coil_address == list[0].coil_address + i
+            for i in range(1, min(len(list), len(values)))
+        ):
+            slave_context: ModbusSlaveContext = self.context[0]
+            for start_idx in range(0, len(values), batch_size):
+                end_idx = min(start_idx + batch_size, len(values))
+                batch_values = values[start_idx:end_idx]
+                batch_address = list[start_idx].coil_address
+                slave_context.setValues(1, batch_address, batch_values)
+        else:
+            slave_context: ModbusSlaveContext = self.context[0]
+            for i, value in enumerate(values):
+                if i < len(list):
+                    coil = list[i]
+                    slave_context.setValues(1, coil.coil_address, [value])
+
+    async def write_batch_hreg(
+        self, batch_size: int, list: List[ModbusRegister], values: List[int]
+    ) -> None:
+        """
+        Write integer values to Modbus holding registers in batches.
+
+        This method writes a list of integer values to Modbus holding registers, either
+        in batches (if the registers have contiguous addresses) or individually. It
+        prevents writing to registers configured as inputs by checking their direction
+        before attempting to write.
+
+        Args:
+            batch_size (int): Maximum number of registers to update in a single operation
+            list (List[ModbusRegister]): The registers to update
+            values (List[int]): The integer values to write to the registers
+
+        Returns:
+            None
+
+        Raises:
+            ValueError: If any register in the list has VariableDirection.INPUT
+        """
+
+        # Check if any registers have VariableDirection.INPUT
+        input_regs = [
+            reg for reg in list if reg.register_direction == VariableDirection.INPUT
+        ]
+        if input_regs:
+            input_addresses = [reg.register_adress for reg in input_regs]
+            raise ValueError(
+                f"Cannot write to INPUT registers at addresses: {input_addresses}"
+            )
+
+        # Check if registers are contiguous
+        if all(
+            list[i].register_adress == list[0].register_adress + i
+            for i in range(1, min(len(list), len(values)))
+        ):
+            slave_context: ModbusSlaveContext = self.context[0]
+            for start_idx in range(0, len(values), batch_size):
+                end_idx = min(start_idx + batch_size, len(values))
+                batch_values = values[start_idx:end_idx]
+                batch_address = list[start_idx].register_adress
+                slave_context.setValues(3, batch_address, batch_values)
+        else:
+            slave_context: ModbusSlaveContext = self.context[0]
+            for i, value in enumerate(values):
+                if i < len(list):
+                    reg = list[i]
+                    slave_context.setValues(3, reg.register_adress, [value])
+
+    async def stop_server(self) -> bool:
+        """
+        Stop the Modbus TCP server.
+
+        This method stops the running Modbus server by setting the running flag to False
+        and using the PyModbus ServerAsyncStop function to shut down the server.
+
+        Returns:
+            bool: True if the server was successfully stopped, False otherwise.
         """
 
         logger = LoggerManager.get_logger(__name__)
         logger.info("Modbus TCP Server - Stopping server...")
         self.running = False
 
-        if hasattr(self, "update_task") and self.update_task:
+        if self.update_task:
             try:
                 self.update_task.cancel()
                 await asyncio.gather(self.update_task, return_exceptions=True)
+                self.update_task = None
             except Exception as e:
-                logger.error(f"Error canceling polling task: {e}")
+                logger.error(f"Error canceling update process: {e}")
+                return False
+
+        if self.receive_task:
+            try:
+                self.receive_task.cancel()
+                await asyncio.gather(self.receive_task, return_exceptions=True)
+                self.receive_task = None
+            except Exception as e:
+                logger.error(f"Error canceling receive process: {e}")
+                return False
 
         if self.server is not None:
             try:
-                self.server.server_close()
+                await ServerAsyncStop()
+                self.server = None
             except Exception as e:
                 logger.error(f"Error closing server: {e}")
+                return False
+
+        return True
