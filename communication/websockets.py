@@ -64,17 +64,13 @@ class WebSocketServer:
 
         async with self.lock:
             if self.client:
-                logger.warning(
-                    "WebSocket Server - A client is already connected. Rejecting new connection..."
-                )
+                logger.warning("WebSocket Server - A client is already connected. Rejecting new connection...")
                 await websocket.close()
                 return
 
             self.client = websocket
             client_address = websocket.remote_address
-            logger.info(
-                f"WebSocket Server - Connection established from {client_address}"
-            )
+            logger.info(f"WebSocket Server - Connection established from {client_address}")
 
         try:
             async for message in websocket:
@@ -85,9 +81,7 @@ class WebSocketServer:
                 except json.JSONDecodeError as e:
                     logger.error(f"WebSocket Server - Error decoding message", e)
         except ConnectionClosed:
-            logger.warning(
-                f"WebSocket Server - Connection closed by client: {client_address}"
-            )
+            logger.warning(f"WebSocket Server - Connection closed by client: {client_address}")
         except Exception as e:
             logger.error(f"WebSocket Server - Error occurred", e)
         finally:
@@ -108,9 +102,7 @@ class WebSocketServer:
                     message = await self.send_queue.get()
                     await self.send_message(message)
                 except Exception as e:
-                    logger.error(
-                        f"WebSocket Server - Error processing messages to send", e
-                    )
+                    logger.error(f"WebSocket Server - Error processing messages to send", e)
             else:
                 await asyncio.sleep(0.5)
 

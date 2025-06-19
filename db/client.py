@@ -146,16 +146,12 @@ class DBClient:
         try:
             placeholders = ", ".join("?" * len(values))
             columns = ", ".join(parameters)
-            self.cursor.execute(
-                f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})", values
-            )
+            self.cursor.execute(f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})", values)
             self.conn.commit()
         except Exception as e:
             logger.error(f"DB Client - Error inserting entry into {table_name}: {e}")
 
-    def update_entry(
-        self, table_name: str, set_clause: str, where_clause: str = None
-    ) -> None:
+    def update_entry(self, table_name: str, set_clause: str, where_clause: str = None) -> None:
         """
         Updates an existing entry in the specified table using a custom query.
 
@@ -188,9 +184,7 @@ class DBClient:
         except Exception as e:
             logger.error(f"DB Client - Error updating entry in {table_name}: {e}")
 
-    def delete_entries(
-        self, table_name: str, where_clause: str, params: tuple = ()
-    ) -> None:
+    def delete_entries(self, table_name: str, where_clause: str, params: tuple = ()) -> None:
         """
         Deletes entries from the specified table using a custom query.
 
@@ -221,9 +215,7 @@ class DBClient:
         except Exception as e:
             logger.error(f"DB Client - Error deleting entries from {table_name}: {e}")
 
-    def get_entries(
-        self, table_name: str, where_clause: str = None, params: tuple = ()
-    ) -> list:
+    def get_entries(self, table_name: str, where_clause: str = None, params: tuple = ()) -> list:
         """
         Retrieves entries from the database using a SQL SELECT query.
 

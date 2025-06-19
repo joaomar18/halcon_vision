@@ -105,13 +105,9 @@ class VisionSystem:
                 else:
                     raise KeyError(f"Message type not found in {self.name}")
         except ValueError as e:
-            logger.error(
-                f"{self.name}- Value Error when processing incoming message: {e}"
-            )
+            logger.error(f"{self.name}- Value Error when processing incoming message: {e}")
         except KeyError as e:
-            logger.error(
-                f"{self.name}- Key Error when processing incoming message: {e}"
-            )
+            logger.error(f"{self.name}- Key Error when processing incoming message: {e}")
         except Exception as e:
             logger.error(f"{self.name}- Error processing incoming message: {e}")
 
@@ -160,9 +156,7 @@ class VisionSystem:
                     raise KeyError(f"Data not found in status message")
 
         except ValueError as e:
-            logger.error(
-                f"{self.name}- Value Error when processing status message: {e}"
-            )
+            logger.error(f"{self.name}- Value Error when processing status message: {e}")
         except KeyError as e:
             logger.error(f"{self.name}- Key Error when processing status message: {e}")
         except Exception as e:
@@ -200,9 +194,7 @@ class VisionSystem:
                     raise KeyError(f"Section not found in request message")
 
         except ValueError as e:
-            logger.error(
-                f"{self.name}- Value Error when processing request message: {e}"
-            )
+            logger.error(f"{self.name}- Value Error when processing request message: {e}")
         except KeyError as e:
             logger.error(f"{self.name}- Key Error when processing request message: {e}")
         except Exception as e:
@@ -232,15 +224,11 @@ class VisionSystem:
 
                 values_keys: dict = message.get(BATCH_VALUES_KEY)
                 if not values_keys:
-                    raise ValueError(
-                        f"Didn't received any values to update from batch request"
-                    )
+                    raise ValueError(f"Didn't received any values to update from batch request")
 
                 for control_key, control_value in values_keys.items():
                     if control_key not in self.communication.inputs.control:
-                        logger.warning(
-                            f"Invalid control key in batch update: {control_key}"
-                        )
+                        logger.warning(f"Invalid control key in batch update: {control_key}")
                         continue
 
                     if isinstance(control_value, str):
@@ -275,9 +263,7 @@ class VisionSystem:
                 await self.handle_ready_state()
 
         except ValueError as e:
-            logger.error(
-                f"{self.name}- Value Error when processing control section: {e}"
-            )
+            logger.error(f"{self.name}- Value Error when processing control section: {e}")
         except Exception as e:
             logger.error(f"{self.name}- Error processing control section: {e}")
 
@@ -327,27 +313,19 @@ class VisionSystem:
                 values_keys: dict = message.get(BATCH_VALUES_KEY)
 
                 if not values_keys:
-                    raise ValueError(
-                        f"Didn't received any values to update from batch request"
-                    )
+                    raise ValueError(f"Didn't received any values to update from batch request")
 
                 for index, value_info in values_keys.items():
                     try:
                         index = int(index)
 
-                        if index < 0 or index >= len(
-                            self.communication.inputs.inputs_register
-                        ):
-                            logger.warning(
-                                f"Invalid index in batch inputs update: {index}"
-                            )
+                        if index < 0 or index >= len(self.communication.inputs.inputs_register):
+                            logger.warning(f"Invalid index in batch inputs update: {index}")
                             continue
 
                         if isinstance(value_info, dict):
                             value_str = value_info.get("value")
-                            value_type = value_info.get(
-                                "type", "int"
-                            )  # Default to int if type not specified
+                            value_type = value_info.get("type", "int")  # Default to int if type not specified
                         else:
                             # If only value is provided, assume int type
                             value_str = str(value_info)
@@ -356,17 +334,13 @@ class VisionSystem:
                         value = self.convert_value_based_on_type(value_str, value_type)
 
                         # Update register and camera
-                        self.communication.inputs.inputs_register[index].set_value(
-                            value
-                        )
+                        self.communication.inputs.inputs_register[index].set_value(value)
                         self.controller.set_camera_input(index, value)
 
                     except (ValueError, TypeError) as e:
                         logger.warning(f"Error processing input at index {index}: {e}")
 
-                logger.debug(
-                    f"Updated multiple input registers in batch: {len(values_keys)} registers"
-                )
+                logger.debug(f"Updated multiple input registers in batch: {len(values_keys)} registers")
 
             else:
 
@@ -374,35 +348,25 @@ class VisionSystem:
                 value_type_key = message.get(VALUE_TYPE_KEY)
                 value_index_key = message.get(VALUE_INDEX_KEY)
 
-                if (
-                    value_key is None
-                    or value_type_key is None
-                    or value_index_key is None
-                ):
+                if value_key is None or value_type_key is None or value_index_key is None:
                     raise KeyError(f"Missing key in inputs section message: {message}")
 
                 index = int(value_index_key)
 
                 if index < 0 or index >= len(self.communication.inputs.inputs_register):
-                    raise ValueError(
-                        f"Invalid index in inputs section message: {index}"
-                    )
+                    raise ValueError(f"Invalid index in inputs section message: {index}")
 
                 value = self.convert_value_based_on_type(value_key, value_type_key)
 
                 self.communication.inputs.inputs_register[index].set_value(value)
                 self.controller.set_camera_input(index, value)
 
-                logger.debug(
-                    f"Updated single input register: index={index}, value={value}"
-                )
+                logger.debug(f"Updated single input register: index={index}, value={value}")
 
         except KeyError as e:
             logger.error(f"{self.name}- Key Error when processing inputs section: {e}")
         except ValueError as e:
-            logger.error(
-                f"{self.name}- Value Error when processing inputs section: {e}"
-            )
+            logger.error(f"{self.name}- Value Error when processing inputs section: {e}")
         except Exception as e:
             logger.error(f"{self.name}- Error processing inputs section: {e}")
 

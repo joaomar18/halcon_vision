@@ -144,9 +144,7 @@ class ObservableModbusSlaveContext(ModbusSlaveContext):
         else:
             raise ValueError(f"The callback {callback} is not valid")
 
-    def run_callbacks(
-        self, fc_has_hex: int, address: int, values: Sequence[int | bool]
-    ) -> None:
+    def run_callbacks(self, fc_has_hex: int, address: int, values: Sequence[int | bool]) -> None:
         """
         Schedule execution of all registered callbacks.
 
@@ -162,9 +160,7 @@ class ObservableModbusSlaveContext(ModbusSlaveContext):
         if not self.callbacks:
             return
 
-        coroutines = [
-            callback(fc_has_hex, address, values) for callback in self.callbacks
-        ]
+        coroutines = [callback(fc_has_hex, address, values) for callback in self.callbacks]
 
         if coroutines:
             asyncio.create_task(self.process_callbacks(coroutines))
@@ -203,9 +199,7 @@ class ObservableModbusSlaveContext(ModbusSlaveContext):
         super().setValues(fc_as_hex, address, values)
         self.run_callbacks(fc_as_hex, address, values)
 
-    def setValuesInternal(
-        self, fc_as_hex: int, address: int, values: Sequence[int | bool]
-    ):
+    def setValuesInternal(self, fc_as_hex: int, address: int, values: Sequence[int | bool]):
         """
         Set values without triggering callbacks.
 
@@ -432,12 +426,8 @@ class ModbusTCPServer:
 
         for name, vision_system in self.vision_manager.vision_systems.items():
 
-            (current_coil, current_reg) = self.init_inputs(
-                vision_system, current_coil, current_reg
-            )
-            (current_coil, current_reg) = self.init_outputs(
-                vision_system, current_coil, current_reg
-            )
+            (current_coil, current_reg) = self.init_inputs(vision_system, current_coil, current_reg)
+            (current_coil, current_reg) = self.init_outputs(vision_system, current_coil, current_reg)
 
             current_coil = functions.round_to_nearest_10(current_coil)
             current_reg = functions.round_to_nearest_10(current_reg)
@@ -451,16 +441,12 @@ class ModbusTCPServer:
 
         return store
 
-    async def receive_client_updates(
-        self, fc_has_hex: int, address: int, values: Sequence[int | bool]
-    ) -> None:
+    async def receive_client_updates(self, fc_has_hex: int, address: int, values: Sequence[int | bool]) -> None:
 
         logger = LoggerManager.get_logger(__name__)
 
         if fc_has_hex == 5:  # Coil Update:
-            initial_coil = next(
-                coil for coil in self.coils if coil.coil_address == address
-            )
+            initial_coil = next(coil for coil in self.coils if coil.coil_address == address)
             if not initial_coil:
                 logger.warning(f"Received coil update with unknown address: {address}")
                 return
@@ -476,7 +462,10 @@ class ModbusTCPServer:
             await self.receive_queue.put(message)
 
         elif fc_has_hex == 6:  # Register Update:
-            print(f"Received register update: Address: {address}, Values: {values}")
+            initial_reg = next(reg for reg in self.registers if reg.register_adress == address)
+            if not initial_reg:
+                logger.warning(f"Received register update with unknown address: {address}")
+                return
 
         elif fc_has_hex == 15:  # Multiple Coil updates
 
@@ -485,11 +474,9 @@ class ModbusTCPServer:
 
             for i, value in enumerate(values):
 
-                coil = next(
-                    coil for coil in self.coils if coil.coil_address == address + i
-                )
+                coil = next(coil for coil in self.coils if coil.coil_address == address + i)
                 if not coil:
-                    logger.error(f"Tried to write unknown coil address: {address + i}")
+                    logger.warning(f"Tried to write unknown coil address: {address + i}")
                     return
 
                 if not initial_coil:
@@ -498,7 +485,7 @@ class ModbusTCPServer:
                 values_dict[coil.coil_name] = value
 
             if not initial_coil:
-                logger.error(f"Tried to write no coil addresses in the request")
+                logger.warning(f"Tried to write no coil addresses in the request")
                 return
 
             message = {
@@ -512,9 +499,7 @@ class ModbusTCPServer:
             await self.receive_queue.put(message)
 
         elif fc_has_hex == 16:  # Multiple Register Updates:
-            print(
-                f"Received multiple registers update: Address: {address}, Values: {values}"
-            )
+            print(f"Received multiple registers update: Address: {address}, Values: {values}")
 
     async def start_server(self) -> bool:
         """
@@ -536,9 +521,7 @@ class ModbusTCPServer:
 
             self.update_task = asyncio.create_task(self.process_update_requests())
 
-            self.server = await StartAsyncTcpServer(
-                context=self.context, address=(self.host, self.port)
-            )
+            self.server = await StartAsyncTcpServer(context=self.context, address=(self.host, self.port))
             return True
 
         except Exception as e:
@@ -579,9 +562,7 @@ class ModbusTCPServer:
             except Exception as e:
                 logger.error(f"WebSocket Server - Error processing update request", e)
 
-    async def update_coils(
-        self, peripheral: str, section: str, input_value: Any
-    ) -> None:
+    async def update_coils(self, peripheral: str, section: str, input_value: Any) -> None:
         """
         Update Modbus coils based on a message received from a vision system.
 
@@ -604,9 +585,7 @@ class ModbusTCPServer:
         try:
             if section in [STATUS_SECTION]:
                 matching_coils: List[ModbusCoil] = [
-                    coil
-                    for coil in self.coils
-                    if coil.device_name == peripheral and coil.coil_section == section
+                    coil for coil in self.coils if coil.device_name == peripheral and coil.coil_section == section
                 ]
 
                 if isinstance(input_value, Dict):
@@ -615,9 +594,7 @@ class ModbusTCPServer:
                     values: List[bool] = []
 
                     for key, value in input_value.items():
-                        coil = next(
-                            (c for c in matching_coils if c.coil_name == key), None
-                        )
+                        coil = next((c for c in matching_coils if c.coil_name == key), None)
                         if coil:
                             values.append(bool(value))
 
@@ -626,9 +603,7 @@ class ModbusTCPServer:
         except Exception as e:
             logger.error(f"Failed to update coils on the modbus server: {e}")
 
-    async def update_program_number_ack(
-        self, peripheral: str, section: str, input_value: Any
-    ) -> None:
+    async def update_program_number_ack(self, peripheral: str, section: str, input_value: Any) -> None:
         """
         Update the program number acknowledgment register in the Modbus server.
 
@@ -654,23 +629,16 @@ class ModbusTCPServer:
                 matching_register: ModbusRegister = next(
                     reg
                     for reg in self.registers
-                    if reg.device_name == peripheral
-                    and reg.register_section == PROGRAM_NUMBER_ACKNOWLEDGE_SECTION
+                    if reg.device_name == peripheral and reg.register_section == PROGRAM_NUMBER_ACKNOWLEDGE_SECTION
                 )
                 if matching_register:
                     slave_context: ObservableModbusSlaveContext = self.context[0]
-                    slave_context.setValuesInternal(
-                        3, matching_register.register_adress, [input_value]
-                    )
+                    slave_context.setValuesInternal(3, matching_register.register_adress, [input_value])
 
         except Exception as e:
-            logger.error(
-                f"Failed to update program number acknowledge on the modbus server: {e}"
-            )
+            logger.error(f"Failed to update program number acknowledge on the modbus server: {e}")
 
-    async def update_outputs_registers(
-        self, peripheral: str, section: str, input_value: Any
-    ):
+    async def update_outputs_registers(self, peripheral: str, section: str, input_value: Any):
         """
         Update output registers in the Modbus server based on vision system data.
 
@@ -696,8 +664,7 @@ class ModbusTCPServer:
                 matching_registers = [
                     reg
                     for reg in self.registers
-                    if reg.device_name == peripheral
-                    and reg.register_section == OUTPUTS_SECTION
+                    if reg.device_name == peripheral and reg.register_section == OUTPUTS_SECTION
                 ]
 
                 if matching_registers and len(matching_registers) == len(input_value):
@@ -714,9 +681,7 @@ class ModbusTCPServer:
 
                         converted_values.append(current_value)
 
-                    await self.write_batch_hreg(
-                        32, matching_registers, converted_values
-                    )
+                    await self.write_batch_hreg(32, matching_registers, converted_values)
 
                 else:
                     if len(matching_registers) != len(input_value):
@@ -725,13 +690,9 @@ class ModbusTCPServer:
                         )
 
         except Exception as e:
-            logger.error(
-                f"Failed to update outputs registers on the modbus server: {e}"
-            )
+            logger.error(f"Failed to update outputs registers on the modbus server: {e}")
 
-    async def write_batch_coils(
-        self, batch_size: int, list: List[ModbusCoil], values: List[bool]
-    ) -> None:
+    async def write_batch_coils(self, batch_size: int, list: List[ModbusCoil], values: List[bool]) -> None:
         """
         Write boolean values to Modbus coils in batches.
 
@@ -752,20 +713,13 @@ class ModbusTCPServer:
         """
 
         # Check if any coils have VariableDirection.INPUT
-        input_coils = [
-            coil for coil in list if coil.coil_direction == VariableDirection.INPUT
-        ]
+        input_coils = [coil for coil in list if coil.coil_direction == VariableDirection.INPUT]
         if input_coils:
             input_addresses = [coil.coil_address for coil in input_coils]
-            raise ValueError(
-                error_msg=f"Cannot write to INPUT coils at addresses: {input_addresses}"
-            )
+            raise ValueError(error_msg=f"Cannot write to INPUT coils at addresses: {input_addresses}")
 
         # Check if registers are contiguous
-        if all(
-            list[i].coil_address == list[0].coil_address + i
-            for i in range(1, min(len(list), len(values)))
-        ):
+        if all(list[i].coil_address == list[0].coil_address + i for i in range(1, min(len(list), len(values)))):
             slave_context: ObservableModbusSlaveContext = self.context[0]
             for start_idx in range(0, len(values), batch_size):
                 end_idx = min(start_idx + batch_size, len(values))
@@ -779,9 +733,7 @@ class ModbusTCPServer:
                     coil = list[i]
                     slave_context.setValuesInternal(1, coil.coil_address, [value])
 
-    async def write_batch_hreg(
-        self, batch_size: int, list: List[ModbusRegister], values: List[int]
-    ) -> None:
+    async def write_batch_hreg(self, batch_size: int, list: List[ModbusRegister], values: List[int]) -> None:
         """
         Write integer values to Modbus holding registers in batches.
 
@@ -803,20 +755,13 @@ class ModbusTCPServer:
         """
 
         # Check if any registers have VariableDirection.INPUT
-        input_regs = [
-            reg for reg in list if reg.register_direction == VariableDirection.INPUT
-        ]
+        input_regs = [reg for reg in list if reg.register_direction == VariableDirection.INPUT]
         if input_regs:
             input_addresses = [reg.register_adress for reg in input_regs]
-            raise ValueError(
-                f"Cannot write to INPUT registers at addresses: {input_addresses}"
-            )
+            raise ValueError(f"Cannot write to INPUT registers at addresses: {input_addresses}")
 
         # Check if registers are contiguous
-        if all(
-            list[i].register_adress == list[0].register_adress + i
-            for i in range(1, min(len(list), len(values)))
-        ):
+        if all(list[i].register_adress == list[0].register_adress + i for i in range(1, min(len(list), len(values)))):
             slave_context: ObservableModbusSlaveContext = self.context[0]
             for start_idx in range(0, len(values), batch_size):
                 end_idx = min(start_idx + batch_size, len(values))
