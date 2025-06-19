@@ -475,14 +475,41 @@ class ModbusTCPServer:
 
             await self.receive_queue.put(message)
 
-            print(f"Received coil update: Address: {address}, Values: {values}")
         elif fc_has_hex == 6:  # Register Update:
             print(f"Received register update: Address: {address}, Values: {values}")
 
         elif fc_has_hex == 15:  # Multiple Coil updates
-            print(
-                f"Received multiple coils update: Address: {address}, Values: {values}"
-            )
+
+            initial_coil: ModbusCoil = None
+            values_dict: Dict[str, bool] = {}
+
+            for i, value in enumerate(values):
+
+                coil = next(
+                    coil for coil in self.coils if coil.coil_address == address + i
+                )
+                if not coil:
+                    logger.error(f"Tried to write unknown coil address: {address + i}")
+                    return
+
+                if not initial_coil:
+                    initial_coil = coil
+
+                values_dict[coil.coil_name] = value
+
+            if not initial_coil:
+                logger.error(f"Tried to write no coil addresses in the request")
+                return
+
+            message = {
+                PERIPHERAL_KEY: initial_coil.device_name,
+                TYPE_KEY: "request",
+                BATCH_KEY: True,
+                SECTION_KEY: initial_coil.coil_section,
+                BATCH_VALUES_KEY: values_dict,
+            }
+
+            await self.receive_queue.put(message)
 
         elif fc_has_hex == 16:  # Multiple Register Updates:
             print(

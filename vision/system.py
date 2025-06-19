@@ -59,7 +59,7 @@ class VisionSystem:
             )
 
         except Exception as e:
-            logger.error(f"{self.name}- Error initializing", e)
+            logger.error(f"{self.name}- Error initializing: {e}")
 
     async def init(self) -> None:
         """
@@ -75,7 +75,7 @@ class VisionSystem:
             await self.controller.init()
 
         except Exception as e:
-            logger.error(f"{self.name}- Error initializing controller", e)
+            logger.error(f"{self.name}- Error initializing controller: {e}")
 
     async def process_incoming_messages(self, message: dict) -> None:
         """
@@ -106,12 +106,14 @@ class VisionSystem:
                     raise KeyError(f"Message type not found in {self.name}")
         except ValueError as e:
             logger.error(
-                f"{self.name}- Value Error when processing incoming message", e
+                f"{self.name}- Value Error when processing incoming message: {e}"
             )
         except KeyError as e:
-            logger.error(f"{self.name}- Key Error when processing incoming message", e)
+            logger.error(
+                f"{self.name}- Key Error when processing incoming message: {e}"
+            )
         except Exception as e:
-            logger.error(f"{self.name}- Error processing incoming message", e)
+            logger.error(f"{self.name}- Error processing incoming message: {e}")
 
     def set_update_queues(self, queues: list[asyncio.Queue]) -> None:
         """
@@ -128,7 +130,7 @@ class VisionSystem:
             self.communication.outputs.set_update_outputs_queues(queues)
 
         except Exception as e:
-            logger.error(f"{self.name}- Error setting update queue", e)
+            logger.error(f"{self.name}- Error setting update queue: {e}")
 
     async def process_status_message(self, message: dict) -> None:
         """
@@ -158,11 +160,13 @@ class VisionSystem:
                     raise KeyError(f"Data not found in status message")
 
         except ValueError as e:
-            logger.error(f"{self.name}- Value Error when processing status message", e)
+            logger.error(
+                f"{self.name}- Value Error when processing status message: {e}"
+            )
         except KeyError as e:
-            logger.error(f"{self.name}- Key Error when processing status message", e)
+            logger.error(f"{self.name}- Key Error when processing status message: {e}")
         except Exception as e:
-            logger.error(f"{self.name}- Error processing status message", e)
+            logger.error(f"{self.name}- Error processing status message: {e}")
 
     async def process_request(self, message: dict) -> None:
         """
@@ -196,11 +200,13 @@ class VisionSystem:
                     raise KeyError(f"Section not found in request message")
 
         except ValueError as e:
-            logger.error(f"{self.name}- Value Error when processing request message", e)
+            logger.error(
+                f"{self.name}- Value Error when processing request message: {e}"
+            )
         except KeyError as e:
-            logger.error(f"{self.name}- Key Error when processing request message", e)
+            logger.error(f"{self.name}- Key Error when processing request message: {e}")
         except Exception as e:
-            logger.error(f"{self.name}- Error processing request message", e)
+            logger.error(f"{self.name}- Error processing request message: {e}")
 
     async def handle_control_section(self, message: dict) -> None:
         """
@@ -269,9 +275,11 @@ class VisionSystem:
                 await self.handle_ready_state()
 
         except ValueError as e:
-            logger.error(f"{self.name}- Value Error when processing control section", e)
+            logger.error(
+                f"{self.name}- Value Error when processing control section: {e}"
+            )
         except Exception as e:
-            logger.error(f"{self.name}- Error processing control section", e)
+            logger.error(f"{self.name}- Error processing control section: {e}")
 
     async def handle_ready_state(self) -> None:
         """
@@ -390,11 +398,13 @@ class VisionSystem:
                 )
 
         except KeyError as e:
-            logger.error(f"{self.name}- Key Error when processing inputs section", e)
+            logger.error(f"{self.name}- Key Error when processing inputs section: {e}")
         except ValueError as e:
-            logger.error(f"{self.name}- Value Error when processing inputs section", e)
+            logger.error(
+                f"{self.name}- Value Error when processing inputs section: {e}"
+            )
         except Exception as e:
-            logger.error(f"{self.name}- Error processing inputs section", e)
+            logger.error(f"{self.name}- Error processing inputs section: {e}")
 
     def convert_string_to_bool(self, value: str) -> bool:
         """
