@@ -4,10 +4,18 @@ import asyncio
 from pymodbus.server import StartAsyncTcpServer, ServerAsyncStop
 from pymodbus.datastore import ModbusSequentialDataBlock
 from pymodbus.datastore import ModbusSlaveContext, ModbusServerContext
-from pymodbus.datastore.store import BaseModbusDataBlock
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Tuple, Optional, Any
+from typing import (
+    Dict,
+    List,
+    Tuple,
+    Sequence,
+    Callable,
+    Awaitable,
+    Optional,
+    Any,
+)
 import logging
 
 #######################################
@@ -79,6 +87,138 @@ class ModbusCoil:
     coil_address: int
     coil_direction: VariableDirection
     coil_name: Optional[str] = None
+
+
+"""
+Type definition for Modbus server callbacks.
+
+Represents an async function that processes Modbus value changes with parameters:
+- function_code: int - The Modbus function code
+- address: int - The starting Modbus address that was changed
+- values: Sequence[int | bool] - The new values (booleans for coils, integers for registers)
+
+The callback must be an async function that returns None.
+"""
+CallbackType = Callable[[int, int, Sequence[int | bool]], Awaitable[None]]
+
+
+class ObservableModbusSlaveContext(ModbusSlaveContext):
+    """
+    An extended ModbusSlaveContext that provides callbacks for value changes.
+
+    This class extends the standard ModbusSlaveContext to allow registering callbacks
+    that will be triggered whenever client devices write to the Modbus server. The callbacks
+    are executed asynchronously to prevent blocking the Modbus communication.
+
+    Callbacks receive the function code, address, and new values whenever a Modbus client
+    changes register or coil values.
+    """
+
+    def __init__(
+        self,
+        *_args,
+        di: ModbusSequentialDataBlock | None = None,
+        co: ModbusSequentialDataBlock | None = None,
+        ir: ModbusSequentialDataBlock | None = None,
+        hr: ModbusSequentialDataBlock | None = None,
+    ):
+        super().__init__(*_args, di, co, ir, hr)
+        self.callbacks: List[CallbackType] = []
+
+    def register_callback(self, callback: CallbackType):
+        """
+        Register an async callback function to be called when values change.
+
+        The callback should accept function code, address, and values parameters
+        and must be an async function.
+
+        Args:
+            callback: An async function to call when values change
+
+        Raises:
+            ValueError: If the provided callback is not valid
+        """
+
+        if callback:
+            self.callbacks.append(callback)
+        else:
+            raise ValueError(f"The callback {callback} is not valid")
+
+    def run_callbacks(
+        self, fc_has_hex: int, address: int, values: Sequence[int | bool]
+    ) -> None:
+        """
+        Schedule execution of all registered callbacks.
+
+        This method creates a background task to run all registered callbacks
+        asynchronously, without blocking the main Modbus server.
+
+        Args:
+            fc_has_hex: Function code of the Modbus operation
+            address: Starting address of the affected registers/coils
+            values: New values that were written
+        """
+
+        if not self.callbacks:
+            return
+
+        coroutines = [
+            callback(fc_has_hex, address, values) for callback in self.callbacks
+        ]
+
+        if coroutines:
+            asyncio.create_task(self.process_callbacks(coroutines))
+
+    async def process_callbacks(self, coroutines: List[CallbackType]) -> None:
+        """
+        Process all callback coroutines concurrently.
+
+        This method awaits all the callback coroutines using asyncio.gather()
+        to run them concurrently, and handles any exceptions that might occur.
+
+        Args:
+            coroutines: List of coroutine objects from callbacks
+        """
+
+        logger = LoggerManager.get_logger(__name__)
+
+        try:
+            await asyncio.gather(*coroutines)
+        except Exception as e:
+            logger.error(f"Error processing callbacks in modbus server: {e}")
+
+    def setValues(self, fc_as_hex: int, address: int, values: Sequence[int | bool]):
+        """
+        Override the setValues method to trigger callbacks after value changes.
+
+        This method is called when Modbus clients write new values to the server.
+        It updates the values in the data store and then triggers all registered callbacks.
+
+        Args:
+            fc_as_hex: Function code of the Modbus operation
+            address: Starting address to update
+            values: New values to set
+        """
+
+        super().setValues(fc_as_hex, address, values)
+        self.run_callbacks(fc_as_hex, address, values)
+
+    def setValuesInternal(
+        self, fc_as_hex: int, address: int, values: Sequence[int | bool]
+    ):
+        """
+        Set values without triggering callbacks.
+
+        This method allows internal code to update values without triggering
+        the callbacks that are meant for external client changes.
+
+        Args:
+            fc_as_hex: Function code of the Modbus operation
+            address: Starting address to update
+            values: New values to set
+        """
+
+        super().setValues(fc_as_hex, address, values)
 
 
 class ModbusTCPServer:
@@ -261,7 +401,7 @@ class ModbusTCPServer:
 
         return (current_coil, current_register)
 
-    def init_context(self) -> ModbusSlaveContext:
+    def init_context(self) -> ObservableModbusSlaveContext:
         """
         Initialize the Modbus slave context with coils and registers for all vision systems.
 
@@ -302,12 +442,52 @@ class ModbusTCPServer:
             current_coil = functions.round_to_nearest_10(current_coil)
             current_reg = functions.round_to_nearest_10(current_reg)
 
-        store = ModbusSlaveContext(
+        store = ObservableModbusSlaveContext(
             co=ModbusSequentialDataBlock(1, [0] * current_coil),
             hr=ModbusSequentialDataBlock(1, [0] * current_reg),
         )
 
+        store.register_callback(self.receive_client_updates)
+
         return store
+
+    async def receive_client_updates(
+        self, fc_has_hex: int, address: int, values: Sequence[int | bool]
+    ) -> None:
+
+        logger = LoggerManager.get_logger(__name__)
+
+        if fc_has_hex == 5:  # Coil Update:
+            initial_coil = next(
+                coil for coil in self.coils if coil.coil_address == address
+            )
+            if not initial_coil:
+                logger.warning(f"Received coil update with unknown address: {address}")
+                return
+
+            message = {
+                PERIPHERAL_KEY: initial_coil.device_name,
+                TYPE_KEY: "request",
+                SECTION_KEY: initial_coil.coil_section,
+                DATA_KEY: initial_coil.coil_name,
+                VALUE_KEY: values[0],
+            }
+
+            await self.receive_queue.put(message)
+
+            print(f"Received coil update: Address: {address}, Values: {values}")
+        elif fc_has_hex == 6:  # Register Update:
+            print(f"Received register update: Address: {address}, Values: {values}")
+
+        elif fc_has_hex == 15:  # Multiple Coil updates
+            print(
+                f"Received multiple coils update: Address: {address}, Values: {values}"
+            )
+
+        elif fc_has_hex == 16:  # Multiple Register Updates:
+            print(
+                f"Received multiple registers update: Address: {address}, Values: {values}"
+            )
 
     async def start_server(self) -> bool:
         """
@@ -451,8 +631,8 @@ class ModbusTCPServer:
                     and reg.register_section == PROGRAM_NUMBER_ACKNOWLEDGE_SECTION
                 )
                 if matching_register:
-                    slave_context: ModbusSlaveContext = self.context[0]
-                    slave_context.setValues(
+                    slave_context: ObservableModbusSlaveContext = self.context[0]
+                    slave_context.setValuesInternal(
                         3, matching_register.register_adress, [input_value]
                     )
 
@@ -559,18 +739,18 @@ class ModbusTCPServer:
             list[i].coil_address == list[0].coil_address + i
             for i in range(1, min(len(list), len(values)))
         ):
-            slave_context: ModbusSlaveContext = self.context[0]
+            slave_context: ObservableModbusSlaveContext = self.context[0]
             for start_idx in range(0, len(values), batch_size):
                 end_idx = min(start_idx + batch_size, len(values))
                 batch_values = values[start_idx:end_idx]
                 batch_address = list[start_idx].coil_address
-                slave_context.setValues(1, batch_address, batch_values)
+                slave_context.setValuesInternal(1, batch_address, batch_values)
         else:
-            slave_context: ModbusSlaveContext = self.context[0]
+            slave_context: ObservableModbusSlaveContext = self.context[0]
             for i, value in enumerate(values):
                 if i < len(list):
                     coil = list[i]
-                    slave_context.setValues(1, coil.coil_address, [value])
+                    slave_context.setValuesInternal(1, coil.coil_address, [value])
 
     async def write_batch_hreg(
         self, batch_size: int, list: List[ModbusRegister], values: List[int]
@@ -610,18 +790,18 @@ class ModbusTCPServer:
             list[i].register_adress == list[0].register_adress + i
             for i in range(1, min(len(list), len(values)))
         ):
-            slave_context: ModbusSlaveContext = self.context[0]
+            slave_context: ObservableModbusSlaveContext = self.context[0]
             for start_idx in range(0, len(values), batch_size):
                 end_idx = min(start_idx + batch_size, len(values))
                 batch_values = values[start_idx:end_idx]
                 batch_address = list[start_idx].register_adress
-                slave_context.setValues(3, batch_address, batch_values)
+                slave_context.setValuesInternal(3, batch_address, batch_values)
         else:
-            slave_context: ModbusSlaveContext = self.context[0]
+            slave_context: ObservableModbusSlaveContext = self.context[0]
             for i, value in enumerate(values):
                 if i < len(list):
                     reg = list[i]
-                    slave_context.setValues(3, reg.register_adress, [value])
+                    slave_context.setValuesInternal(3, reg.register_adress, [value])
 
     async def stop_server(self) -> bool:
         """
