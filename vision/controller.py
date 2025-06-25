@@ -235,7 +235,7 @@ class VisionController:
         for index in range(len(variable_list)):
             variable_list[index] = None
 
-    def reset_register_values(self, register_list: list[HalconVariable]) -> None:
+    def reset_register_values(self, register_list: list[Variable]) -> None:
         """
         Reset the values in the provided register list to 0.
 

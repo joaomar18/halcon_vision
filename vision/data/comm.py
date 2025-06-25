@@ -56,7 +56,7 @@ class VisionCommunication:
 
         return self._inputs.control
 
-    def get_inputs_registers_list(self) -> List[HalconVariable]:
+    def get_inputs_registers_list(self) -> List[Variable]:
 
         return self._inputs.inputs_register
 
@@ -64,6 +64,6 @@ class VisionCommunication:
 
         return self._outputs.status
 
-    def get_outputs_register_list(self) -> List[HalconVariable]:
+    def get_outputs_register_list(self) -> List[Variable]:
 
         return self._outputs.outputs_register

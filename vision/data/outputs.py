@@ -23,7 +23,7 @@ class VisionOutputs:
         statistics (dict): Runtime statistics.
         program_number_acknowledge (int): Acknowledged program number.
         outputs_variables (List[List[str]]): A list of output variables.
-        outputs_register (List[HalconVariable]): A list of register variables to handle camera output.
+        outputs_register (List[Variable]): A list of register variables to handle camera output.
     """
 
     def __init__(self, device_name: str, register_size: int):
@@ -44,8 +44,8 @@ class VisionOutputs:
 
         self.program_number_acknowledge = 0
         self.outputs_variables: list[list[str]] = [None for _ in range(register_size)]
-        self.outputs_register: list[HalconVariable] = list(
-            HalconVariable() for _ in range(register_size)
+        self.outputs_register: list[Variable] = list(
+            Variable() for _ in range(register_size)
         )
 
         self.update_outputs_queues: list[asyncio.Queue] = []
@@ -100,7 +100,7 @@ class VisionOutputs:
         await self.send_message(
             type="status",
             section="outputs_register",
-            value=HalconVariable.serialize_list(self.outputs_register),
+            value=Variable.serialize_list(self.outputs_register),
         )
 
     async def send_all(self) -> None:

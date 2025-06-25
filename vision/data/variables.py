@@ -1,3 +1,13 @@
+###########EXTERNAL IMPORTS############
+
+from enum import Enum
+
+#######################################
+
+#############LOCAL IMPORTS#############
+
+#######################################
+
 # Constants for sections
 CONTROL_SECTION = "control"
 PROGRAM_NUMBER_SECTION = "program_number"
@@ -40,7 +50,14 @@ VALUE_TYPE_KEY = "value_type"
 VALUE_INDEX_KEY = "index"
 
 
-class HalconVariable:
+class VariableType(Enum):
+    INT = "int"
+    FLOAT = "float"
+    STRING = "string"
+    
+
+
+class Variable:
     """
     A class to represent a variable in the Halcon vision system.
 
@@ -48,13 +65,15 @@ class HalconVariable:
         value: The value of the Halcon variable.
     """
 
-    def __init__(self, value=None):
+    def __init__(self, type: VariableType, value=None, external: bool = True):
 
         self.value = value
+        self.type = type
+        self.external = external
 
     def set_value(self, value):
         """
-        Sets the value of the HalconVariable.
+        Sets the value of the Variable.
 
         Args:
             value: The value to be set.
@@ -64,7 +83,7 @@ class HalconVariable:
 
     def get_type(self):
         """
-        Returns the type of the current value of the HalconVariable.
+        Returns the type of the current value of the Variable.
 
         Returns:
             The type of the value.
@@ -73,18 +92,20 @@ class HalconVariable:
         return type(self.value)
 
     @staticmethod
-    def serialize_list(list: list["HalconVariable"]) -> list[str]:
+    def serialize_list(list: list["Variable"]) -> list[str]:
         """
-        Serializes a list of HalconVariables into a list of strings.
+        Serializes a list of Variable objects into a list of strings.
 
         Args:
-            variable_list (list[HalconVariable]): The list of HalconVariable objects to serialize.
+            variable_list (list[Variable]): The list of Variable objects to serialize.
 
         Returns:
-            list[str]: A list of string representations of the HalconVariable values.
+            list[str]: A list of string representations of the Variable values
+                    for variables marked as external.
         """
 
         output = []
         for variable in list:
-            output.append(str(variable.value))
+            if variable.external:
+                output.append(str(variable.value))
         return output
