@@ -36,7 +36,7 @@ class VisionInputs:
         self.program_number = init_program
         self.inputs_variables: list[list[str]] = [None for _ in range(register_size)]
         self.inputs_register: list[Variable] = list(
-            Variable() for _ in range(register_size)
+            Variable(VariableType.INT, None, True) for _ in range(register_size)
         )
         self.update_inputs_queues: list[asyncio.Queue] = []
 

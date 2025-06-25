@@ -45,7 +45,7 @@ class VisionOutputs:
         self.program_number_acknowledge = 0
         self.outputs_variables: list[list[str]] = [None for _ in range(register_size)]
         self.outputs_register: list[Variable] = list(
-            Variable() for _ in range(register_size)
+            Variable(VariableType.INT, None, True) for _ in range(register_size)
         )
 
         self.update_outputs_queues: list[asyncio.Queue] = []

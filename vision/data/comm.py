@@ -39,6 +39,7 @@ class VisionCommunication:
 
         self._inputs = VisionInputs(device_name, reg_size, init_program)
         self._outputs = VisionOutputs(device_name, reg_size)
+        
 
     @property
     def inputs(self) -> VisionInputs:
